@@ -485,7 +485,8 @@ class course_generator {
                 return trim($content);
             }
         } catch (\Exception $e) {
-            // Fall through to placeholder content below.
+            // Log failure at debug level and fall through to placeholder content below.
+            debugging('Lumination lesson generation failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
         }
 
         return '<p><em>Content for "' . htmlspecialchars($lessontitle)
