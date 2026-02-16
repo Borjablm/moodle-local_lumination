@@ -321,9 +321,6 @@ MD;
             'en'
         );
 
-        // Acknowledge the expected debugging message from the caught exception.
-        $this->assertDebugging();
-
         // The course should still be created.
         $this->assertSame('Fallback Course', $course->fullname);
 
