@@ -24,6 +24,9 @@
 
 namespace local_lumination\form;
 
+global $CFG;
+require_once($CFG->libdir . '/formslib.php');
+
 /**
  * Step 1 form: Upload documents and configure course generation.
  *

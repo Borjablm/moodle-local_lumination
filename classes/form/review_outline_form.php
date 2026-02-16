@@ -24,6 +24,9 @@
 
 namespace local_lumination\form;
 
+global $CFG;
+require_once($CFG->libdir . '/formslib.php');
+
 /**
  * Step 2 form: Review and edit the generated course outline before creating the Moodle course.
  *

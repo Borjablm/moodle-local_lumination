@@ -93,17 +93,27 @@ class usage_logger {
         global $DB;
 
         $since = time() - ($days * DAYSECS);
-        $sql = "SELECT FROM_UNIXTIME(timecreated, '%Y-%m-%d') AS day,
+        // Use integer division to group by calendar day (DB-agnostic).
+        $sql = "SELECT FLOOR(timecreated / 86400) AS daynum,
                        COUNT(*) AS requests,
                        SUM(tokens_in) AS tokens_in,
                        SUM(tokens_out) AS tokens_out,
                        SUM(credits) AS credits
                   FROM {local_lumination_usage}
                  WHERE timecreated >= :since
-              GROUP BY FROM_UNIXTIME(timecreated, '%Y-%m-%d')
-              ORDER BY day DESC";
+              GROUP BY FLOOR(timecreated / 86400)
+              ORDER BY daynum DESC";
 
-        return array_values($DB->get_records_sql($sql, ['since' => $since]));
+        $rows = $DB->get_records_sql($sql, ['since' => $since]);
+
+        // Convert daynum back to a date string in PHP.
+        $result = [];
+        foreach ($rows as $row) {
+            $row->day = date('Y-m-d', (int) $row->daynum * 86400);
+            unset($row->daynum);
+            $result[] = $row;
+        }
+        return $result;
     }
 
     /**
@@ -140,21 +150,16 @@ class usage_logger {
         global $DB;
 
         $since = time() - ($days * DAYSECS);
-        $sql = "SELECT u.userid, u.requests, u.tokens_in, u.tokens_out, u.credits,
-                       usr.firstname, usr.lastname
-                  FROM (
-                       SELECT userid,
-                              COUNT(*) AS requests,
-                              SUM(tokens_in) AS tokens_in,
-                              SUM(tokens_out) AS tokens_out,
-                              SUM(credits) AS credits
-                         FROM {local_lumination_usage}
-                        WHERE timecreated >= :since
-                     GROUP BY userid
-                     ORDER BY credits DESC
-                  ) u
+        $sql = "SELECT u.userid, usr.firstname, usr.lastname,
+                       COUNT(*) AS requests,
+                       SUM(u.tokens_in) AS tokens_in,
+                       SUM(u.tokens_out) AS tokens_out,
+                       SUM(u.credits) AS credits
+                  FROM {local_lumination_usage} u
                   JOIN {user} usr ON usr.id = u.userid
-              ORDER BY u.credits DESC";
+                 WHERE u.timecreated >= :since
+              GROUP BY u.userid, usr.firstname, usr.lastname
+              ORDER BY credits DESC";
 
         return array_values($DB->get_records_sql($sql, ['since' => $since], 0, $limit));
     }
