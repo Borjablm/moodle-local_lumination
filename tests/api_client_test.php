@@ -37,15 +37,9 @@ final class api_client_test extends \advanced_testcase {
     }
 
     /**
-     * Test that is_configured() returns false when no plugin settings are stored.
-     *
-     * When neither apibaseurl nor apikey have been set in plugin config,
-     * the api_client constructor reads empty values and is_configured()
-     * must return false.
+     * Test that is_configured() returns false when no API key is set.
      */
     public function test_is_configured_returns_false_when_empty(): void {
-        // Ensure no config is set (clean state after resetAfterTest).
-        unset_config('apibaseurl', 'local_lumination');
         unset_config('apikey', 'local_lumination');
 
         $client = new api_client();
@@ -53,40 +47,12 @@ final class api_client_test extends \advanced_testcase {
     }
 
     /**
-     * Test that is_configured() returns true when both settings are present.
-     *
-     * After storing a base URL and API key via set_config(), the client
-     * should report itself as fully configured.
+     * Test that is_configured() returns true when the API key is present.
      */
     public function test_is_configured_returns_true_when_set(): void {
-        set_config('apibaseurl', 'https://api.lumination.ai', 'local_lumination');
         set_config('apikey', 'test-key-abc123', 'local_lumination');
 
         $client = new api_client();
         $this->assertTrue($client->is_configured());
-    }
-
-    /**
-     * Test that is_configured() returns false when only the base URL is set
-     * but the API key is missing.
-     */
-    public function test_is_configured_returns_false_without_apikey(): void {
-        set_config('apibaseurl', 'https://api.lumination.ai', 'local_lumination');
-        unset_config('apikey', 'local_lumination');
-
-        $client = new api_client();
-        $this->assertFalse($client->is_configured());
-    }
-
-    /**
-     * Test that is_configured() returns false when only the API key is set
-     * but the base URL is missing.
-     */
-    public function test_is_configured_returns_false_without_baseurl(): void {
-        unset_config('apibaseurl', 'local_lumination');
-        set_config('apikey', 'test-key-abc123', 'local_lumination');
-
-        $client = new api_client();
-        $this->assertFalse($client->is_configured());
     }
 }
