@@ -50,18 +50,24 @@ if (empty($outline)) {
     redirect(new moodle_url('/local/lumination/course_generator.php'));
 }
 
-$form = new \local_lumination\form\review_outline_form(null, [
-    'outline' => $outline,
-    'guide_uuid' => '',
-    'title' => $title,
-    'categoryid' => $categoryid,
-    'document_uuids' => [],
-    'language' => $language,
-]);
+$form = new \local_lumination\form\review_outline_form(
+    null,
+    [
+        'outline' => $outline,
+        'guide_uuid' => '',
+        'title' => $title,
+        'categoryid' => $categoryid,
+        'document_uuids' => [],
+        'language' => $language,
+    ]
+);
 
 if ($form->is_cancelled()) {
-    unset($SESSION->lumination_outline, $SESSION->lumination_source_text,
-        $SESSION->lumination_title, $SESSION->lumination_categoryid, $SESSION->lumination_language);
+    unset($SESSION->lumination_outline);
+    unset($SESSION->lumination_source_text);
+    unset($SESSION->lumination_title);
+    unset($SESSION->lumination_categoryid);
+    unset($SESSION->lumination_language);
     redirect(new moodle_url('/local/lumination/course_generator.php'));
 }
 
@@ -83,16 +89,20 @@ if ($data = $form->get_data()) {
         );
 
         // Clear session.
-        unset($SESSION->lumination_outline, $SESSION->lumination_source_text,
-            $SESSION->lumination_title, $SESSION->lumination_categoryid, $SESSION->lumination_language);
+        unset($SESSION->lumination_outline);
+        unset($SESSION->lumination_source_text);
+        unset($SESSION->lumination_title);
+        unset($SESSION->lumination_categoryid);
+        unset($SESSION->lumination_language);
 
         // Show success.
+        $successparams = (object) [
+            'sections' => $course->lumination_sections,
+            'activities' => $course->lumination_activities,
+        ];
         echo $OUTPUT->header();
         echo $OUTPUT->notification(
-            get_string('coursecreated_desc', 'local_lumination', (object)[
-                'sections' => $course->lumination_sections,
-                'activities' => $course->lumination_activities,
-            ]),
+            get_string('coursecreated_desc', 'local_lumination', $successparams),
             'success'
         );
         echo html_writer::link(
@@ -106,7 +116,9 @@ if ($data = $form->get_data()) {
     } catch (\Exception $e) {
         echo $OUTPUT->header();
         echo $OUTPUT->notification(
-            get_string('errorapifailed', 'local_lumination', $e->getMessage()), 'error');
+            get_string('errorapifailed', 'local_lumination', $e->getMessage()),
+            'error'
+        );
         $form->display();
         echo $OUTPUT->footer();
         die;
@@ -114,23 +126,25 @@ if ($data = $form->get_data()) {
 }
 
 // Prepare JS strings for the inline outline editor.
-$jsstrings = json_encode([
-    'module' => get_string('modulename', 'local_lumination'),
-    'lesson' => get_string('lessonname', 'local_lumination'),
-    'addmodule' => get_string('addmodule', 'local_lumination'),
-    'removemodule' => get_string('removemodule', 'local_lumination'),
-    'addlesson' => get_string('addlesson', 'local_lumination'),
-    'removelesson' => get_string('removelesson', 'local_lumination'),
-    'generatingcourse' => get_string('generatingcourse', 'local_lumination'),
-    'generatingcourse_desc' => get_string('generatingcourse_desc', 'local_lumination'),
-]);
+$jsstrings = json_encode(
+    [
+        'module' => get_string('modulename', 'local_lumination'),
+        'lesson' => get_string('lessonname', 'local_lumination'),
+        'addmodule' => get_string('addmodule', 'local_lumination'),
+        'removemodule' => get_string('removemodule', 'local_lumination'),
+        'addlesson' => get_string('addlesson', 'local_lumination'),
+        'removelesson' => get_string('removelesson', 'local_lumination'),
+        'generatingcourse' => get_string('generatingcourse', 'local_lumination'),
+        'generatingcourse_desc' => get_string('generatingcourse_desc', 'local_lumination'),
+    ]
+);
 
 // Display the review form.
 echo $OUTPUT->header();
 echo html_writer::tag('p', get_string('outlinereview_desc', 'local_lumination'));
 $form->display();
 
-// Inline JS for the outline editor — avoids AMD build pipeline complexity.
+// Inline JS for the outline editor -- avoids AMD build pipeline complexity.
 echo '<script>
 document.addEventListener("DOMContentLoaded", function() {
     var STRINGS = ' . $jsstrings . ';
@@ -256,10 +270,13 @@ document.addEventListener("DOMContentLoaded", function() {
         sync();
         var overlay = document.createElement("div");
         overlay.id = "lumination-loading-overlay";
-        overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;";
+        overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);" +
+            "z-index:9999;display:flex;align-items:center;justify-content:center;";
         overlay.innerHTML =
-            "<div style=\"background:#fff;border-radius:8px;padding:2rem 3rem;text-align:center;max-width:420px;\">" +
-                "<div class=\"spinner-border text-primary mb-3\" role=\"status\"><span class=\"sr-only\">Loading...</span></div>" +
+            "<div style=\"background:#fff;border-radius:8px;padding:2rem 3rem;" +
+                "text-align:center;max-width:420px;\">" +
+                "<div class=\"spinner-border text-primary mb-3\" role=\"status\">" +
+                    "<span class=\"sr-only\">Loading...</span></div>" +
                 "<h4>" + escapeHtml(STRINGS.generatingcourse) + "</h4>" +
                 "<p class=\"text-muted mb-0\">" + escapeHtml(STRINGS.generatingcourse_desc) + "</p>" +
             "</div>";

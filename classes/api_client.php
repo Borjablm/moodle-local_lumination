@@ -24,10 +24,6 @@
 
 namespace local_lumination;
 
-defined('MOODLE_INTERNAL') || die();
-
-require_once($GLOBALS['CFG']->libdir . '/filelib.php');
-
 /**
  * Central HTTP client for all Lumination API calls.
  *
@@ -122,7 +118,7 @@ class api_client {
         $url = $this->baseurl . $path;
         $curl = new \curl();
         $this->set_common_options($curl);
-        // Don't set Content-Type — curl sets multipart boundary automatically.
+        // Don't set Content-Type -- curl sets multipart boundary automatically.
 
         $fields['file'] = new \CURLFile($filepath);
         $response = $curl->post($url, $fields);
@@ -158,8 +154,12 @@ class api_client {
         $httpcode = $info['http_code'] ?? 0;
 
         if ($curl->get_errno()) {
-            throw new \moodle_exception('errorapifailed', 'local_lumination',
-                '', 'Connection error: ' . $curl->error);
+            throw new \moodle_exception(
+                'errorapifailed',
+                'local_lumination',
+                '',
+                'Connection error: ' . $curl->error
+            );
         }
 
         if ($httpcode < 200 || $httpcode >= 300) {
@@ -167,16 +167,25 @@ class api_client {
             $decoded = json_decode($response, true);
             if (!empty($decoded['error'])) {
                 $errormsg .= ': ' . $decoded['error'];
-            } elseif (!empty($decoded['detail'])) {
+            } else if (!empty($decoded['detail'])) {
                 $errormsg .= ': ' . $decoded['detail'];
             }
-            throw new \moodle_exception('errorapifailed', 'local_lumination', '', $errormsg);
+            throw new \moodle_exception(
+                'errorapifailed',
+                'local_lumination',
+                '',
+                $errormsg
+            );
         }
 
         $decoded = json_decode($response, true);
         if ($decoded === null) {
-            throw new \moodle_exception('errorapifailed', 'local_lumination',
-                '', 'Invalid JSON response');
+            throw new \moodle_exception(
+                'errorapifailed',
+                'local_lumination',
+                '',
+                'Invalid JSON response'
+            );
         }
 
         return $decoded;

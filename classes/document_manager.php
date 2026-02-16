@@ -24,8 +24,6 @@
 
 namespace local_lumination;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Manages document uploads to the Lumination API and tracks document UUIDs.
  *
@@ -53,7 +51,7 @@ class document_manager {
     /**
      * Convert a Moodle stored_file to text using the material-to-text endpoint.
      *
-     * This is the primary method for text extraction — it extracts text from
+     * This is the primary method for text extraction -- it extracts text from
      * PDFs, docs, etc. without needing the /process-material endpoint (which
      * requires a rate limiter).
      *
@@ -67,15 +65,23 @@ class document_manager {
         $mimetype = $file->get_mimetype();
         $filename = $file->get_filename();
 
-        $result = $this->api->post('/api/material-to-text', [
-            'content' => $b64content,
-            'content_type' => $mimetype,
-            'filename' => $filename,
-        ]);
+        $result = $this->api->post(
+            '/api/material-to-text',
+            [
+                'content' => $b64content,
+                'content_type' => $mimetype,
+                'filename' => $filename,
+            ]
+        );
 
         if (empty($result['success']) || empty($result['text'])) {
             $error = $result['error'] ?? 'Unknown error';
-            throw new \moodle_exception('errorapifailed', 'local_lumination', '', $error);
+            throw new \moodle_exception(
+                'errorapifailed',
+                'local_lumination',
+                '',
+                $error
+            );
         }
 
         return $result['text'];
@@ -101,15 +107,18 @@ class document_manager {
         $filename = $file->get_filename();
         $mimetype = $file->get_mimetype();
 
-        $result = $this->api->post('/lumination-ai/api/v1/process-material', [
-            'items' => [
-                [
-                    'content' => $b64content,
-                    'content_type' => $mimetype,
-                    'filename' => $filename,
+        $result = $this->api->post(
+            '/lumination-ai/api/v1/process-material',
+            [
+                'items' => [
+                    [
+                        'content' => $b64content,
+                        'content_type' => $mimetype,
+                        'filename' => $filename,
+                    ],
                 ],
-            ],
-        ]);
+            ]
+        );
 
         $documentuuid = $result['items'][0]['document_uuid']
             ?? $result['document_uuid']
@@ -117,8 +126,13 @@ class document_manager {
             ?? null;
 
         if (empty($documentuuid)) {
-            throw new \moodle_exception('errorapifailed', 'local_lumination',
-                '', 'No document_uuid in upload response. Keys: ' . implode(', ', array_keys($result)));
+            $resultkeys = implode(', ', array_keys($result));
+            throw new \moodle_exception(
+                'errorapifailed',
+                'local_lumination',
+                '',
+                'No document_uuid in upload response. Keys: ' . $resultkeys
+            );
         }
 
         $record = new \stdClass();

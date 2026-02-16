@@ -17,7 +17,7 @@
 /**
  * Course Generator - Step 1: Upload documents and generate outline.
  *
- * Flow: Upload files → extract text via /api/material-to-text → generate outline via agent chat → review.
+ * Flow: Upload files -> extract text via /api/material-to-text -> generate outline via agent chat -> review.
  *
  * URL: /local/lumination/course_generator.php
  *
@@ -60,7 +60,14 @@ if ($data = $form->get_data()) {
     // Step 1: Extract text from uploaded files.
     $fs = get_file_storage();
     $usercontext = context_user::instance($USER->id);
-    $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $data->documents, '', false);
+    $files = $fs->get_area_files(
+        $usercontext->id,
+        'user',
+        'draft',
+        $data->documents,
+        '',
+        false
+    );
 
     $alltext = '';
     $errors = [];
@@ -111,7 +118,9 @@ if ($data = $form->get_data()) {
     } catch (\Exception $e) {
         echo $OUTPUT->header();
         echo $OUTPUT->notification(
-            get_string('errorapifailed', 'local_lumination', $e->getMessage()), 'error');
+            get_string('errorapifailed', 'local_lumination', $e->getMessage()),
+            'error'
+        );
         $form->display();
         echo $OUTPUT->footer();
         die;

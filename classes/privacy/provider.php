@@ -30,8 +30,6 @@ namespace local_lumination\privacy;
 
 use core_privacy\local\metadata\collection;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Privacy provider for the Lumination plugin.
  *

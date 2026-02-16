@@ -55,7 +55,10 @@ function local_lumination_extend_navigation(global_navigation $navigation) {
  * @param context $context The context in which the capability is checked.
  * @return void
  */
-function local_lumination_extend_navigation_category_settings(navigation_node $navigation, context $context) {
+function local_lumination_extend_navigation_category_settings(
+    navigation_node $navigation,
+    context $context
+) {
     if (has_capability('local/lumination:generatecourse', $context)) {
         $navigation->add(
             get_string('coursegenerator_nav', 'local_lumination'),

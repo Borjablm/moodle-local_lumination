@@ -26,42 +26,60 @@ defined('MOODLE_INTERNAL') || die();
 
 if ($hassiteconfig) {
     // Create a settings category for Lumination.
-    $ADMIN->add('localplugins', new admin_category('local_lumination_cat',
-        get_string('pluginname', 'local_lumination')));
+    $ADMIN->add(
+        'localplugins',
+        new admin_category(
+            'local_lumination_cat',
+            get_string('pluginname', 'local_lumination')
+        )
+    );
 
     // Settings page.
-    $settings = new admin_settingpage('local_lumination', get_string('pluginname', 'local_lumination'));
+    $settings = new admin_settingpage(
+        'local_lumination',
+        get_string('pluginname', 'local_lumination')
+    );
 
-    $settings->add(new admin_setting_configtext(
-        'local_lumination/apibaseurl',
-        get_string('setting_apibaseurl', 'local_lumination'),
-        get_string('setting_apibaseurl_desc', 'local_lumination'),
-        '',
-        PARAM_URL
-    ));
+    $settings->add(
+        new admin_setting_configtext(
+            'local_lumination/apibaseurl',
+            get_string('setting_apibaseurl', 'local_lumination'),
+            get_string('setting_apibaseurl_desc', 'local_lumination'),
+            '',
+            PARAM_URL
+        )
+    );
 
-    $settings->add(new admin_setting_configpasswordunmask(
-        'local_lumination/apikey',
-        get_string('setting_apikey', 'local_lumination'),
-        get_string('setting_apikey_desc', 'local_lumination'),
-        ''
-    ));
+    $settings->add(
+        new admin_setting_configpasswordunmask(
+            'local_lumination/apikey',
+            get_string('setting_apikey', 'local_lumination'),
+            get_string('setting_apikey_desc', 'local_lumination'),
+            ''
+        )
+    );
 
     $ADMIN->add('local_lumination_cat', $settings);
 
     // Direct link to the Course Generator tool.
-    $ADMIN->add('local_lumination_cat', new admin_externalpage(
-        'local_lumination_coursegen',
-        get_string('coursegenerator_nav', 'local_lumination'),
-        new moodle_url('/local/lumination/course_generator.php'),
-        'local/lumination:generatecourse'
-    ));
+    $ADMIN->add(
+        'local_lumination_cat',
+        new admin_externalpage(
+            'local_lumination_coursegen',
+            get_string('coursegenerator_nav', 'local_lumination'),
+            new moodle_url('/local/lumination/course_generator.php'),
+            'local/lumination:generatecourse'
+        )
+    );
 
     // Direct link to the Usage Dashboard.
-    $ADMIN->add('local_lumination_cat', new admin_externalpage(
-        'local_lumination_usage',
-        get_string('usage_nav', 'local_lumination'),
-        new moodle_url('/local/lumination/usage.php'),
-        'local/lumination:viewusage'
-    ));
+    $ADMIN->add(
+        'local_lumination_cat',
+        new admin_externalpage(
+            'local_lumination_usage',
+            get_string('usage_nav', 'local_lumination'),
+            new moodle_url('/local/lumination/usage.php'),
+            'local/lumination:viewusage'
+        )
+    );
 }

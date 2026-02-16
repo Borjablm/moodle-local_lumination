@@ -24,10 +24,6 @@
 
 namespace local_lumination\form;
 
-defined('MOODLE_INTERNAL') || die();
-
-require_once($CFG->libdir . '/formslib.php');
-
 /**
  * Step 1 form: Upload documents and configure course generation.
  *
@@ -56,23 +52,33 @@ class upload_form extends \moodleform {
         $mform->addHelpButton('title', 'uploadtitle', 'local_lumination');
 
         // File upload.
-        $mform->addElement('filemanager', 'documents', get_string('uploadfiles', 'local_lumination'), null, [
-            'maxbytes' => 50 * 1024 * 1024, // 50MB.
+        $fileoptions = [
+            'maxbytes' => 50 * 1024 * 1024,
             'maxfiles' => 10,
             'accepted_types' => ['.pdf', '.doc', '.docx', '.txt', '.pptx', '.ppt'],
-        ]);
+        ];
+        $mform->addElement(
+            'filemanager',
+            'documents',
+            get_string('uploadfiles', 'local_lumination'),
+            null,
+            $fileoptions
+        );
         $mform->addRule('documents', get_string('required'), 'required', null, 'client');
         $mform->addHelpButton('documents', 'uploadfiles', 'local_lumination');
 
         // Instructions (optional).
-        $mform->addElement('textarea', 'instructions',
+        $mform->addElement(
+            'textarea',
+            'instructions',
             get_string('instructions', 'local_lumination'),
-            ['rows' => 4, 'cols' => 60]);
+            ['rows' => 4, 'cols' => 60]
+        );
         $mform->setType('instructions', PARAM_TEXT);
         $mform->addHelpButton('instructions', 'instructions', 'local_lumination');
 
         // Language.
-        $mform->addElement('select', 'language', get_string('language', 'local_lumination'), [
+        $languages = [
             'en' => 'English',
             'es' => 'Spanish',
             'fr' => 'French',
@@ -81,12 +87,23 @@ class upload_form extends \moodleform {
             'it' => 'Italian',
             'nl' => 'Dutch',
             'default' => 'Auto-detect',
-        ]);
+        ];
+        $mform->addElement(
+            'select',
+            'language',
+            get_string('language', 'local_lumination'),
+            $languages
+        );
         $mform->setDefault('language', 'en');
 
         // Course category.
         $categories = \core_course_category::make_categories_list();
-        $mform->addElement('select', 'categoryid', get_string('category', 'local_lumination'), $categories);
+        $mform->addElement(
+            'select',
+            'categoryid',
+            get_string('category', 'local_lumination'),
+            $categories
+        );
         $mform->setDefault('categoryid', 1);
 
         $this->add_action_buttons(true, get_string('generateoutline', 'local_lumination'));

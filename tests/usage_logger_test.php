@@ -25,15 +25,12 @@
 
 namespace local_lumination;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Tests for {@see \local_lumination\usage_logger}.
  *
  * @covers \local_lumination\usage_logger
  */
-class usage_logger_test extends \advanced_testcase {
-
+final class usage_logger_test extends \advanced_testcase {
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();

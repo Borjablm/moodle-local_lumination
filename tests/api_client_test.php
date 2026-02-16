@@ -25,15 +25,12 @@
 
 namespace local_lumination;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Tests for {@see \local_lumination\api_client}.
  *
  * @covers \local_lumination\api_client
  */
-class api_client_test extends \advanced_testcase {
-
+final class api_client_test extends \advanced_testcase {
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();

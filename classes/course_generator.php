@@ -27,8 +27,6 @@
 
 namespace local_lumination;
 
-defined('MOODLE_INTERNAL') || die();
-
 require_once($GLOBALS['CFG']->dirroot . '/course/lib.php');
 require_once($GLOBALS['CFG']->dirroot . '/course/modlib.php');
 require_once($GLOBALS['CFG']->dirroot . '/lib/resourcelib.php');
@@ -74,9 +72,12 @@ class course_generator {
      *               contains 'title', 'description', and 'lessons' entries.
      * @throws \moodle_exception If the API returns empty or unparseable content.
      */
-    public function generate_outline_from_text(string $text, string $title = '',
-            string $instructions = '', string $language = 'en'): array {
-
+    public function generate_outline_from_text(
+        string $text,
+        string $title = '',
+        string $instructions = '',
+        string $language = 'en'
+    ): array {
         // Truncate text to avoid token limits (keep ~15000 chars).
         $maxchars = 15000;
         if (strlen($text) > $maxchars) {
@@ -99,13 +100,16 @@ class course_generator {
             . "Create 3-8 modules with 2-5 lessons each.\n\n"
             . "Document content:\n" . $text;
 
-        $result = $this->api->post('/lumination-ai/api/v1/agent/chat', [
-            'persist' => false,
-            'stream' => false,
-            'messages' => [
-                ['role' => 'user', 'content' => $prompt],
-            ],
-        ]);
+        $result = $this->api->post(
+            '/lumination-ai/api/v1/agent/chat',
+            [
+                'persist' => false,
+                'stream' => false,
+                'messages' => [
+                    ['role' => 'user', 'content' => $prompt],
+                ],
+            ]
+        );
 
         usage_logger::log('generate_outline', $result);
 
@@ -173,16 +177,18 @@ class course_generator {
             }
 
             // Match numbered lessons: "1. Lesson Title" or "- Lesson Title".
-            if (preg_match('/^\d+[\.\)]\s+(.+)/', $line, $m) ||
-                preg_match('/^[-*]\s+(.+)/', $line, $m)) {
+            if (
+                preg_match('/^\d+[\.\)]\s+(.+)/', $line, $m) ||
+                preg_match('/^[-*]\s+(.+)/', $line, $m)
+            ) {
                 $lessontitle = trim($m[1]);
                 // Clean up: remove trailing descriptions after " - ".
-                $lessontitle = preg_replace('/\s*[-–]\s+.*$/', '', $lessontitle);
+                $lessontitle = preg_replace('/\s*[-\x{2013}]\s+.*$/u', '', $lessontitle);
                 $currentmodule['lessons'][] = ['title' => $lessontitle];
                 continue;
             }
 
-            // Non-empty lines that aren't headers or list items = description.
+            // Non-empty lines that are not headers or list items are description.
             if (!empty($line) && empty($currentmodule['lessons'])) {
                 $currentmodule['description'] .= ($currentmodule['description'] ? ' ' : '') . $line;
             }
@@ -193,8 +199,12 @@ class course_generator {
         }
 
         if (empty($modules)) {
-            throw new \moodle_exception('errorapifailed', 'local_lumination',
-                '', 'Could not parse course outline from AI response');
+            throw new \moodle_exception(
+                'errorapifailed',
+                'local_lumination',
+                '',
+                'Could not parse course outline from AI response'
+            );
         }
 
         return [
@@ -216,9 +226,12 @@ class course_generator {
      * @return array The API result containing the extracted guide data.
      * @throws \moodle_exception If the API does not return guide content.
      */
-    public function generate_outline(array $documentuuids, string $title = '',
-            string $instructions = '', string $language = 'en'): array {
-
+    public function generate_outline(
+        array $documentuuids,
+        string $title = '',
+        string $instructions = '',
+        string $language = 'en'
+    ): array {
         $data = ['document_uuids' => $documentuuids];
         if (!empty($title)) {
             $data['title'] = $title;
@@ -252,12 +265,15 @@ class course_generator {
      * @return array Course data from the API including 'course_uuid'.
      * @throws \moodle_exception If the API does not return a course_uuid.
      */
-    public function create_lumination_course(string $title, array $documentuuids,
-            string $guideuuid = '', string $language = 'en'): array {
-
+    public function create_lumination_course(
+        string $title,
+        array $documentuuids,
+        string $guideuuid = '',
+        string $language = 'en'
+    ): array {
         $data = [
             'title' => $title,
-            'generate_async' => false, // Sync for MVP.
+            'generate_async' => false,
             'lang_code' => $language,
         ];
 
@@ -273,8 +289,12 @@ class course_generator {
         usage_logger::log('create_course', $result);
 
         if (empty($result['course_uuid'])) {
-            throw new \moodle_exception('errorapifailed', 'local_lumination',
-                '', 'No course_uuid returned');
+            throw new \moodle_exception(
+                'errorapifailed',
+                'local_lumination',
+                '',
+                'No course_uuid returned'
+            );
         }
 
         return $result;
@@ -328,11 +348,16 @@ class course_generator {
      * @return \stdClass The created Moodle course object with additional lumination_sections
      *                   and lumination_activities properties.
      */
-    public function create_moodle_course_from_text(array $modules, string $title, int $categoryid,
-            string $sourcetext = '', string $language = 'en'): \stdClass {
+    public function create_moodle_course_from_text(
+        array $modules,
+        string $title,
+        int $categoryid,
+        string $sourcetext = '',
+        string $language = 'en'
+    ): \stdClass {
         global $DB;
 
-        // Ensure valid category — fall back to first available.
+        // Ensure valid category -- fall back to first available.
         if (empty($categoryid) || !$DB->record_exists('course_categories', ['id' => $categoryid])) {
             $firstcat = $DB->get_record('course_categories', [], 'id', IGNORE_MULTIPLE);
             $categoryid = $firstcat ? $firstcat->id : 1;
@@ -359,15 +384,22 @@ class course_generator {
             $sectionnumber = $i + 1;
             $moduletitle = $module['title'] ?? 'Module ' . ($i + 1);
 
-            $section = $DB->get_record('course_sections', [
-                'course' => $course->id,
-                'section' => $sectionnumber,
-            ]);
+            $section = $DB->get_record(
+                'course_sections',
+                [
+                    'course' => $course->id,
+                    'section' => $sectionnumber,
+                ]
+            );
             if ($section) {
-                course_update_section($course, $section, [
-                    'name' => $moduletitle,
-                    'summary' => $module['description'] ?? '',
-                ]);
+                course_update_section(
+                    $course,
+                    $section,
+                    [
+                        'name' => $moduletitle,
+                        'summary' => $module['description'] ?? '',
+                    ]
+                );
             }
 
             $lessons = $module['lessons'] ?? [];
@@ -376,7 +408,10 @@ class course_generator {
 
                 // Generate lesson content via agent chat.
                 $lessoncontent = $this->generate_lesson_content_from_text(
-                    $lessontitle, $moduletitle, $contexttext, $language
+                    $lessontitle,
+                    $moduletitle,
+                    $contexttext,
+                    $language
                 );
 
                 $this->add_page_activity($course, $sectionnumber, $lessontitle, $lessoncontent);
@@ -405,15 +440,18 @@ class course_generator {
      * @param string $language Language code for the generated content (e.g. 'en').
      * @return string Generated HTML content for the lesson, or a placeholder on failure.
      */
-    private function generate_lesson_content_from_text(string $lessontitle, string $moduletitle,
-            string $sourcetext, string $language = 'en'): string {
-
+    private function generate_lesson_content_from_text(
+        string $lessontitle,
+        string $moduletitle,
+        string $sourcetext,
+        string $language = 'en'
+    ): string {
         $prompt = "You are a course content writer. Write educational content for a lesson.\n\n"
             . "Module: {$moduletitle}\n"
             . "Lesson: {$lessontitle}\n"
             . "Language: {$language}\n\n"
             . "Write the lesson content in HTML format. "
-            . "Do NOT include the lesson title as a heading — it is already displayed separately by the platform.\n"
+            . "Do NOT include the lesson title as a heading -- it is already displayed separately by the platform.\n"
             . "Start directly with the content. Include:\n"
             . "- Clear explanations based on the source material\n"
             . "- Key concepts highlighted with <strong> tags\n"
@@ -422,26 +460,30 @@ class course_generator {
             . "Base the content on this source material:\n" . $sourcetext;
 
         try {
-            $result = $this->api->post('/lumination-ai/api/v1/agent/chat', [
-                'persist' => false,
-                'stream' => false,
-                'messages' => [
-                    ['role' => 'user', 'content' => $prompt],
-                ],
-            ]);
+            $result = $this->api->post(
+                '/lumination-ai/api/v1/agent/chat',
+                [
+                    'persist' => false,
+                    'stream' => false,
+                    'messages' => [
+                        ['role' => 'user', 'content' => $prompt],
+                    ],
+                ]
+            );
 
             usage_logger::log('generate_lesson', $result);
 
             $content = $result['response']['response'] ?? $result['response'] ?? '';
             if (!empty($content) && is_string($content)) {
-                // Strip leading markdown headings (## Title) that duplicate the lesson title.
+                // Strip leading markdown headings that duplicate the lesson title.
                 $content = preg_replace('/^\s*#{1,4}\s+.*?\n+/', '', $content, 1);
-                // Strip leading HTML headings (<h1>..</h4>) that duplicate the lesson title.
+                // Strip leading HTML headings that duplicate the lesson title.
                 $content = preg_replace('/^\s*<h[1-4][^>]*>.*?<\/h[1-4]>\s*/i', '', $content, 1);
                 return trim($content);
             }
         } catch (\Exception $e) {
-            // Fall through to placeholder.
+            // Fall through to placeholder content.
+            debugging('Lesson generation failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
         }
 
         return '<p><em>Content for "' . htmlspecialchars($lessontitle)
@@ -464,8 +506,12 @@ class course_generator {
      * @return \stdClass The created Moodle course object with additional lumination_sections
      *                   and lumination_activities properties.
      */
-    public function create_moodle_course(string $courseuuid, string $title, int $categoryid,
-            ?array $editedmodules = null): \stdClass {
+    public function create_moodle_course(
+        string $courseuuid,
+        string $title,
+        int $categoryid,
+        ?array $editedmodules = null
+    ): \stdClass {
         global $DB, $USER;
 
         // Fetch the full Lumination course structure.
@@ -494,20 +540,27 @@ class course_generator {
 
         // Map each Lumination module to a Moodle section.
         foreach ($modules as $i => $module) {
-            $sectionnumber = $i + 1; // Section 0 is "General".
+            $sectionnumber = $i + 1;
             $moduletitle = $module['title'] ?? $module['name'] ?? 'Module ' . ($i + 1);
             $moduledesc = $module['description'] ?? '';
 
             // Update section name and summary.
-            $section = $DB->get_record('course_sections', [
-                'course' => $course->id,
-                'section' => $sectionnumber,
-            ]);
+            $section = $DB->get_record(
+                'course_sections',
+                [
+                    'course' => $course->id,
+                    'section' => $sectionnumber,
+                ]
+            );
             if ($section) {
                 $section->name = $moduletitle;
                 $section->summary = $moduledesc;
                 $section->summaryformat = \FORMAT_HTML;
-                course_update_section($course, $section, ['name' => $moduletitle, 'summary' => $moduledesc]);
+                course_update_section(
+                    $course,
+                    $section,
+                    ['name' => $moduletitle, 'summary' => $moduledesc]
+                );
             }
 
             // Map each lesson to a mod_page activity.
@@ -565,8 +618,12 @@ class course_generator {
      * @param string $content The HTML content for the page body.
      * @return void
      */
-    private function add_page_activity(\stdClass $course, int $sectionnumber,
-            string $name, string $content): void {
+    private function add_page_activity(
+        \stdClass $course,
+        int $sectionnumber,
+        string $name,
+        string $content
+    ): void {
         global $DB;
 
         $moduleid = $DB->get_field('modules', 'id', ['name' => 'page']);

@@ -25,15 +25,12 @@
 
 namespace local_lumination;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Tests for {@see \local_lumination\course_generator}.
  *
  * @covers \local_lumination\course_generator
  */
-class course_generator_test extends \advanced_testcase {
-
+final class course_generator_test extends \advanced_testcase {
     /** @var \ReflectionMethod Cached reflection for parse_markdown_outline. */
     private \ReflectionMethod $parsemethod;
 
@@ -51,10 +48,6 @@ class course_generator_test extends \advanced_testcase {
         $this->shortnamemethod = new \ReflectionMethod(course_generator::class, 'generate_unique_shortname');
         $this->shortnamemethod->setAccessible(true);
     }
-
-    // -----------------------------------------------------------------------
-    // Tests for parse_markdown_outline (private, accessed via reflection).
-    // -----------------------------------------------------------------------
 
     /**
      * Test that a well-formed markdown outline is parsed into modules and lessons.
@@ -150,10 +143,6 @@ MD;
         $this->assertSame('Functions', $result['modules'][0]['lessons'][1]['title']);
     }
 
-    // -----------------------------------------------------------------------
-    // Tests for generate_unique_shortname (private, accessed via reflection).
-    // -----------------------------------------------------------------------
-
     /**
      * Test that a normal title produces an uppercase alphanumeric shortname.
      */
@@ -211,10 +200,6 @@ MD;
         $shortname2 = $this->shortnamemethod->invoke($generator, 'Test Course');
         $this->assertSame('TESTCOURSE-2', $shortname2);
     }
-
-    // -----------------------------------------------------------------------
-    // Tests for create_moodle_course_from_text (public).
-    // -----------------------------------------------------------------------
 
     /**
      * Test that create_moodle_course_from_text creates a Moodle course with the
@@ -345,10 +330,6 @@ MD;
         $page = reset($pages);
         $this->assertStringContainsString('will be added', $page->content);
     }
-
-    // -----------------------------------------------------------------------
-    // Helpers.
-    // -----------------------------------------------------------------------
 
     /**
      * Create a minimal mock api_client (not expected to be called).

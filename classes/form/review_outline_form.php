@@ -24,10 +24,6 @@
 
 namespace local_lumination\form;
 
-defined('MOODLE_INTERNAL') || die();
-
-require_once($CFG->libdir . '/formslib.php');
-
 /**
  * Step 2 form: Review and edit the generated course outline before creating the Moodle course.
  *
@@ -58,7 +54,11 @@ class review_outline_form extends \moodleform {
         $mform->addElement('hidden', 'guide_uuid', $guideuuid);
         $mform->setType('guide_uuid', PARAM_TEXT);
 
-        $mform->addElement('hidden', 'document_uuids', implode(',', $documentuuids));
+        $mform->addElement(
+            'hidden',
+            'document_uuids',
+            implode(',', $documentuuids)
+        );
         $mform->setType('document_uuids', PARAM_TEXT);
 
         $mform->addElement('hidden', 'language', $language);
