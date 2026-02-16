@@ -52,7 +52,8 @@ class api_client {
      * @param int $timeout Request timeout in seconds.
      */
     public function __construct(?string $baseurl = null, ?string $apikey = null, int $timeout = 120) {
-        $this->baseurl = rtrim($baseurl ?? get_config('local_lumination', 'apibaseurl'), '/');
+        $configurl = $baseurl ?? get_config('local_lumination', 'apibaseurl');
+        $this->baseurl = rtrim($configurl ?: 'https://ai-sv-production.lumination.ai', '/');
         $this->apikey = $apikey ?? get_config('local_lumination', 'apikey');
         $this->timeout = $timeout;
     }

@@ -45,7 +45,7 @@ if ($hassiteconfig) {
             'local_lumination/apibaseurl',
             get_string('setting_apibaseurl', 'local_lumination'),
             get_string('setting_apibaseurl_desc', 'local_lumination'),
-            '',
+            'https://ai-sv-production.lumination.ai',
             PARAM_URL
         )
     );
