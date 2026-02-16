@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="local/lumination/db" VERSION="2026021600" COMMENT="Lumination AI plugin tables">
+  <TABLES>
+    <TABLE NAME="local_lumination_documents" COMMENT="Tracks documents uploaded to Lumination API">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="User who uploaded"/>
+        <FIELD NAME="contextid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="Moodle context for cleanup"/>
+        <FIELD NAME="document_uuid" TYPE="char" LENGTH="64" NOTNULL="true" COMMENT="Lumination document UUID"/>
+        <FIELD NAME="filename" TYPE="char" LENGTH="255" NOTNULL="true"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_contextid" UNIQUE="false" FIELDS="contextid"/>
+        <INDEX NAME="idx_userid" UNIQUE="false" FIELDS="userid"/>
+        <INDEX NAME="idx_document_uuid" UNIQUE="false" FIELDS="document_uuid"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="local_lumination_usage" COMMENT="Tracks Lumination API usage (tokens and credits)">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="Moodle user who triggered the API call"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="false" COMMENT="Associated Moodle course if applicable"/>
+        <FIELD NAME="action" TYPE="char" LENGTH="100" NOTNULL="true" COMMENT="Action type e.g. generate_outline, generate_lesson"/>
+        <FIELD NAME="tokens_in" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" COMMENT="Input tokens consumed"/>
+        <FIELD NAME="tokens_out" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" COMMENT="Output tokens consumed"/>
+        <FIELD NAME="credits" TYPE="number" LENGTH="10" DECIMALS="4" NOTNULL="true" DEFAULT="0" COMMENT="Credits charged for the API call"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_usage_userid" UNIQUE="false" FIELDS="userid"/>
+        <INDEX NAME="idx_usage_timecreated" UNIQUE="false" FIELDS="timecreated"/>
+        <INDEX NAME="idx_usage_action" UNIQUE="false" FIELDS="action"/>
+      </INDEXES>
+    </TABLE>
+  </TABLES>
+</XMLDB>
