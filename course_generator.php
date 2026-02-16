@@ -114,7 +114,6 @@ if ($data = $form->get_data()) {
         $SESSION->lumination_language = $data->language;
 
         redirect(new moodle_url('/local/lumination/review_outline.php'));
-
     } catch (\Exception $e) {
         echo $OUTPUT->header();
         echo $OUTPUT->notification(

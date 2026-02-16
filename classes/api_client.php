@@ -35,7 +35,6 @@ namespace local_lumination;
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class api_client {
-
     /** @var string The base URL for the Lumination API. */
     private string $baseurl;
 

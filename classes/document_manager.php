@@ -35,7 +35,6 @@ namespace local_lumination;
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class document_manager {
-
     /** @var api_client The Lumination API client instance. */
     private api_client $api;
 

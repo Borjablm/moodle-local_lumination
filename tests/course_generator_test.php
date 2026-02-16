@@ -214,7 +214,7 @@ MD;
         $mockapi = $this->createMock(api_client::class);
         $mockapi->method('post')->willReturn([
             'response' => [
-                'response' => '<h3>Generated Lesson</h3><p>This is AI-generated content.</p>',
+                'response' => '<p>This is AI-generated content.</p>',
             ],
         ]);
 
@@ -277,7 +277,7 @@ MD;
 
         // Verify each page got the mocked content.
         foreach ($pages as $page) {
-            $this->assertStringContainsString('Generated Lesson', $page->content);
+            $this->assertStringContainsString('AI-generated content', $page->content);
         }
 
         // Verify the metadata attached to the returned course object.

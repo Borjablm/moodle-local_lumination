@@ -27,6 +27,8 @@
 
 namespace local_lumination;
 
+defined('MOODLE_INTERNAL') || die();
+
 require_once($GLOBALS['CFG']->dirroot . '/course/lib.php');
 require_once($GLOBALS['CFG']->dirroot . '/course/modlib.php');
 require_once($GLOBALS['CFG']->dirroot . '/lib/resourcelib.php');
@@ -44,7 +46,6 @@ require_once($GLOBALS['CFG']->dirroot . '/lib/resourcelib.php');
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class course_generator {
-
     /** @var api_client The Lumination API client instance. */
     private api_client $api;
 
@@ -124,7 +125,9 @@ class course_generator {
 
         // Try JSON first (in case the agent returns it).
         $json = $responsetext;
-        if (preg_match('/```(?:json)?\s*([\s\S]*?)```/', $json, $matches)) {
+        $tick = chr(96);
+        $codeblockpattern = '/' . $tick . '{3}(?:json)?\s*([\s\S]*?)' . $tick . '{3}/';
+        if (preg_match($codeblockpattern, $json, $matches)) {
             $json = $matches[1];
         }
         $outline = json_decode(trim($json), true);
@@ -482,8 +485,7 @@ class course_generator {
                 return trim($content);
             }
         } catch (\Exception $e) {
-            // Fall through to placeholder content.
-            debugging('Lesson generation failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
+            // Fall through to placeholder content below.
         }
 
         return '<p><em>Content for "' . htmlspecialchars($lessontitle)

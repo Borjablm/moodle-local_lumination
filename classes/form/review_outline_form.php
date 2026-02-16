@@ -35,7 +35,6 @@ namespace local_lumination\form;
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class review_outline_form extends \moodleform {
-
     /**
      * Define the form elements for reviewing and editing the course outline.
      *

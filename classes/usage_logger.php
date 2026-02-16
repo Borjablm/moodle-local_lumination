@@ -32,7 +32,6 @@ namespace local_lumination;
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class usage_logger {
-
     /**
      * Log an API call's usage metrics.
      *

@@ -112,7 +112,6 @@ if ($data = $form->get_data()) {
         );
         echo $OUTPUT->footer();
         die;
-
     } catch (\Exception $e) {
         echo $OUTPUT->header();
         echo $OUTPUT->notification(
