@@ -31,9 +31,7 @@ After installation, navigate to:
 
 **Site Administration > Plugins > Local > Lumination AI**
 
-Enter your:
-- **API Base URL** - Your Lumination API instance URL
-- **API Key** - Your API key from the Lumination dashboard
+Enter your **API Key** from the Lumination dashboard.
 
 ## Usage
 
