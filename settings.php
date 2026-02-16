@@ -41,16 +41,6 @@ if ($hassiteconfig) {
     );
 
     $settings->add(
-        new admin_setting_configtext(
-            'local_lumination/apibaseurl',
-            get_string('setting_apibaseurl', 'local_lumination'),
-            get_string('setting_apibaseurl_desc', 'local_lumination'),
-            'https://ai-sv-production.lumination.ai',
-            PARAM_URL
-        )
-    );
-
-    $settings->add(
         new admin_setting_configpasswordunmask(
             'local_lumination/apikey',
             get_string('setting_apikey', 'local_lumination'),

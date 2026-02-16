@@ -35,8 +35,8 @@ namespace local_lumination;
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class api_client {
-    /** @var string The base URL for the Lumination API. */
-    private string $baseurl;
+    /** @var string Production API base URL. */
+    private const BASE_URL = 'https://ai-sv-production.lumination.ai';
 
     /** @var string The API key for authentication. */
     private string $apikey;
@@ -47,24 +47,21 @@ class api_client {
     /**
      * Constructor.
      *
-     * @param string|null $baseurl The API base URL, or null to read from plugin settings.
      * @param string|null $apikey The API key, or null to read from plugin settings.
      * @param int $timeout Request timeout in seconds.
      */
-    public function __construct(?string $baseurl = null, ?string $apikey = null, int $timeout = 120) {
-        $configurl = $baseurl ?? get_config('local_lumination', 'apibaseurl');
-        $this->baseurl = rtrim($configurl ?: 'https://ai-sv-production.lumination.ai', '/');
+    public function __construct(?string $apikey = null, int $timeout = 120) {
         $this->apikey = $apikey ?? get_config('local_lumination', 'apikey');
         $this->timeout = $timeout;
     }
 
     /**
-     * Check if the API is configured with a base URL and API key.
+     * Check if the API is configured with an API key.
      *
-     * @return bool True if both base URL and API key are set.
+     * @return bool True if the API key is set.
      */
     public function is_configured(): bool {
-        return !empty($this->baseurl) && !empty($this->apikey);
+        return !empty($this->apikey);
     }
 
     /**
@@ -76,7 +73,7 @@ class api_client {
      * @throws \moodle_exception If the request fails or returns an error status.
      */
     public function post(string $path, array $data = []): array {
-        $url = $this->baseurl . $path;
+        $url = self::BASE_URL . $path;
         $curl = new \curl();
         $this->set_common_options($curl);
         $curl->setHeader('Content-Type: application/json');
@@ -94,7 +91,7 @@ class api_client {
      * @throws \moodle_exception If the request fails or returns an error status.
      */
     public function get(string $path, array $params = []): array {
-        $url = $this->baseurl . $path;
+        $url = self::BASE_URL . $path;
         if (!empty($params)) {
             $url .= '?' . http_build_query($params);
         }
@@ -115,7 +112,7 @@ class api_client {
      * @throws \moodle_exception If the request fails or returns an error status.
      */
     public function post_multipart(string $path, string $filepath, array $fields = []): array {
-        $url = $this->baseurl . $path;
+        $url = self::BASE_URL . $path;
         $curl = new \curl();
         $this->set_common_options($curl);
         // Don't set Content-Type -- curl sets multipart boundary automatically.
