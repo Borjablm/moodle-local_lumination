@@ -28,8 +28,6 @@
 
 namespace local_lumination\privacy;
 
-defined('MOODLE_INTERNAL') || die();
-
 use core_privacy\local\metadata\collection;
 use core_privacy\local\request\approved_contextlist;
 use core_privacy\local\request\approved_userlist;
@@ -51,9 +49,8 @@ use context_system;
  */
 class provider implements
     \core_privacy\local\metadata\provider,
-    \core_privacy\local\request\plugin\provider,
-    \core_privacy\local\request\core_userlist_provider {
-
+    \core_privacy\local\request\core_userlist_provider,
+    \core_privacy\local\request\plugin\provider {
     /**
      * Describe all personal data stored and transmitted by this plugin.
      *
@@ -239,7 +236,7 @@ class provider implements
             return;
         }
 
-        list($usersql, $userparams) = $DB->get_in_or_equal($userids, SQL_PARAMS_NAMED);
+        [$usersql, $userparams] = $DB->get_in_or_equal($userids, SQL_PARAMS_NAMED);
         $DB->delete_records_select('local_lumination_documents', "userid {$usersql}", $userparams);
         $DB->delete_records_select('local_lumination_usage', "userid {$usersql}", $userparams);
     }

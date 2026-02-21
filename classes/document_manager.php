@@ -24,8 +24,6 @@
 
 namespace local_lumination;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Manages document uploads to the Lumination API and tracks document UUIDs.
  *
