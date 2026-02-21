@@ -14,16 +14,15 @@ Generate full Moodle courses from your documents using AI.
 
 ## Subscription Required
 
-**This plugin requires a paid Lumination AI subscription.**
+**This plugin requires a Lumination AI API key.**
 
 The plugin connects to the Lumination AI API to extract text from documents and generate course content using AI. An API key is required for the plugin to function.
 
+**Pricing:** $0.0495 per lesson generated. First $50 in credits included for free.
+
 **How to obtain an API key:**
 
-1. Visit [lumination.ai](https://lumination.ai) and create an account
-2. Subscribe to a plan that includes API access
-3. Navigate to your Lumination dashboard to find your API key
-4. Enter the API key in the plugin settings at **Site Administration > Plugins > Local > Lumination AI**
+Email us at [hello@lumination.ai](mailto:hello@lumination.ai) to get an API key to test for free. Then enter it in the plugin settings at **Site Administration > Plugins > Local > Lumination AI**.
 
 Without a valid API key, the plugin will display a configuration error when users attempt to generate courses.
 
