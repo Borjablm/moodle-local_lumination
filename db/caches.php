@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Plugin version and other meta-data are defined here.
+ * Cache definitions for the Lumination AI plugin.
  *
  * @package    local_lumination
  * @copyright  2026 Lumination AI <https://lumination.ai>
@@ -24,8 +24,10 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'local_lumination';
-$plugin->version   = 2026022100;
-$plugin->requires  = 2024042200; // Moodle 4.4+.
-$plugin->maturity  = MATURITY_ALPHA;
-$plugin->release   = '0.2.0';
+$definitions = [
+    'outline' => [
+        'mode' => cache_store::MODE_SESSION,
+        'simplekeys' => true,
+        'simpledata' => false,
+    ],
+];

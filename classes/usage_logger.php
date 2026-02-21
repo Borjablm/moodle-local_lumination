@@ -24,6 +24,8 @@
 
 namespace local_lumination;
 
+defined('MOODLE_INTERNAL') || die();
+
 /**
  * Logs API usage (tokens, credits) to the local_lumination_usage table.
  *

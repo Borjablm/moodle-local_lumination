@@ -1,0 +1,179 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template    local_lumination/usage
+
+    Template for the API usage dashboard.
+
+    Context variables required for this template:
+    * description - string - Description text for the page.
+    * periodlinks - array - Period filter buttons.
+        * url - string - URL for the period link.
+        * label - string - Display label.
+        * active - boolean - Whether this is the currently selected period.
+    * cards - array - Summary statistic cards.
+        * label - string - Card title.
+        * value - string - Formatted value.
+    * hasdata - boolean - Whether there is any usage data.
+    * nodatamessage - string - Message when no data is available.
+    * hasdaily - boolean - Whether daily breakdown data exists.
+    * dailyheading - string - Heading for the daily section.
+    * hasbyaction - boolean - Whether by-action data exists.
+    * byactionheading - string - Heading for the by-action section.
+    * hasbyuser - boolean - Whether by-user data exists.
+    * byuserheading - string - Heading for the by-user section.
+    * dailyheaders - array - Column headers for the daily breakdown table.
+        * label - string - Header text.
+    * dailyrows - array - Daily breakdown rows.
+        * cells - array - Cell values for the row.
+            * value - string - Formatted cell value.
+    * actionheaders - array - Column headers for the by-action table.
+        * label - string - Header text.
+    * actionrows - array - By-action rows.
+        * cells - array - Cell values.
+            * value - string - Formatted cell value.
+    * userheaders - array - Column headers for the by-user table.
+        * label - string - Header text.
+    * userrows - array - By-user rows.
+        * cells - array - Cell values.
+            * value - string - Formatted cell value.
+
+    Example context (json):
+    {
+        "description": "View API usage statistics.",
+        "periodlabel": "Period",
+        "periodlinks": [
+            {"url": "/usage.php?days=7", "label": "7 days", "active": false},
+            {"url": "/usage.php?days=30", "label": "30 days", "active": true}
+        ],
+        "cards": [
+            {"label": "Requests", "value": "42"},
+            {"label": "Credits", "value": "1.2345"}
+        ],
+        "hasdata": true,
+        "hasdaily": true,
+        "dailyheading": "Daily breakdown",
+        "dailyheaders": [
+            {"label": "Date"},
+            {"label": "Requests"}
+        ],
+        "dailyrows": [
+            {"cells": [{"value": "2026-02-21"}, {"value": "5"}]}
+        ]
+    }
+}}
+
+<p>{{description}}</p>
+
+<div class="mb-3">
+    <strong>{{periodlabel}}:</strong>
+    {{#periodlinks}}
+        {{#active}}
+            <a href="{{url}}" class="btn btn-primary btn-sm mx-1">{{label}}</a>
+        {{/active}}
+        {{^active}}
+            <a href="{{url}}" class="btn btn-outline-secondary btn-sm mx-1">{{label}}</a>
+        {{/active}}
+    {{/periodlinks}}
+</div>
+
+<div class="row mb-4">
+    {{#cards}}
+        <div class="col-sm-6 col-md-3 mb-2">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-muted">{{label}}</h5>
+                    <p class="card-text h3">{{value}}</p>
+                </div>
+            </div>
+        </div>
+    {{/cards}}
+</div>
+
+{{^hasdata}}
+    {{#nodatamessage}}
+        <div class="alert alert-info">{{nodatamessage}}</div>
+    {{/nodatamessage}}
+{{/hasdata}}
+
+{{#hasdata}}
+    {{#hasdaily}}
+        <h4 class="mt-4">{{dailyheading}}</h4>
+        <table class="table table-striped table-sm">
+            <thead>
+                <tr>
+                    {{#dailyheaders}}
+                        <th>{{label}}</th>
+                    {{/dailyheaders}}
+                </tr>
+            </thead>
+            <tbody>
+                {{#dailyrows}}
+                    <tr>
+                        {{#cells}}
+                            <td>{{value}}</td>
+                        {{/cells}}
+                    </tr>
+                {{/dailyrows}}
+            </tbody>
+        </table>
+    {{/hasdaily}}
+
+    {{#hasbyaction}}
+        <h4 class="mt-4">{{byactionheading}}</h4>
+        <table class="table table-striped table-sm">
+            <thead>
+                <tr>
+                    {{#actionheaders}}
+                        <th>{{label}}</th>
+                    {{/actionheaders}}
+                </tr>
+            </thead>
+            <tbody>
+                {{#actionrows}}
+                    <tr>
+                        {{#cells}}
+                            <td>{{value}}</td>
+                        {{/cells}}
+                    </tr>
+                {{/actionrows}}
+            </tbody>
+        </table>
+    {{/hasbyaction}}
+
+    {{#hasbyuser}}
+        <h4 class="mt-4">{{byuserheading}}</h4>
+        <table class="table table-striped table-sm">
+            <thead>
+                <tr>
+                    {{#userheaders}}
+                        <th>{{label}}</th>
+                    {{/userheaders}}
+                </tr>
+            </thead>
+            <tbody>
+                {{#userrows}}
+                    <tr>
+                        {{#cells}}
+                            <td>{{value}}</td>
+                        {{/cells}}
+                    </tr>
+                {{/userrows}}
+            </tbody>
+        </table>
+    {{/hasbyuser}}
+{{/hasdata}}

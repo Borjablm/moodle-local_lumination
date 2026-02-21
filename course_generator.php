@@ -17,7 +17,7 @@
 /**
  * Course Generator - Step 1: Upload documents and generate outline.
  *
- * Flow: Upload files -> extract text via /api/material-to-text -> generate outline via agent chat -> review.
+ * Flow: Upload files -> extract text via API -> generate outline via agent chat -> review.
  *
  * URL: /local/lumination/course_generator.php
  *
@@ -106,12 +106,15 @@ if ($data = $form->get_data()) {
             $data->language ?? 'en'
         );
 
-        // Store in session for review page.
-        $SESSION->lumination_outline = $outline;
-        $SESSION->lumination_source_text = $alltext;
-        $SESSION->lumination_title = $data->title;
-        $SESSION->lumination_categoryid = $data->categoryid;
-        $SESSION->lumination_language = $data->language;
+        // Store in session cache for the review page.
+        $cache = cache::make('local_lumination', 'outline');
+        $cache->set('data', [
+            'outline' => $outline,
+            'source_text' => $alltext,
+            'title' => $data->title,
+            'categoryid' => $data->categoryid,
+            'language' => $data->language,
+        ]);
 
         redirect(new moodle_url('/local/lumination/review_outline.php'));
     } catch (\Exception $e) {

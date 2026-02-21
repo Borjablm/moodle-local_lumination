@@ -24,6 +24,8 @@
 
 namespace local_lumination;
 
+defined('MOODLE_INTERNAL') || die();
+
 /**
  * Central HTTP client for all Lumination API calls.
  *

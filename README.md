@@ -12,11 +12,26 @@ Generate full Moodle courses from your documents using AI.
 2. **Review** - AI generates a course outline that you can edit (add/remove modules and lessons)
 3. **Create** - One click creates a full Moodle course with sections and page activities
 
+## Subscription Required
+
+**This plugin requires a paid Lumination AI subscription.**
+
+The plugin connects to the Lumination AI API to extract text from documents and generate course content using AI. An API key is required for the plugin to function.
+
+**How to obtain an API key:**
+
+1. Visit [lumination.ai](https://lumination.ai) and create an account
+2. Subscribe to a plan that includes API access
+3. Navigate to your Lumination dashboard to find your API key
+4. Enter the API key in the plugin settings at **Site Administration > Plugins > Local > Lumination AI**
+
+Without a valid API key, the plugin will display a configuration error when users attempt to generate courses.
+
 ## Requirements
 
 - Moodle 4.4 or later
 - PHP 8.1 or later
-- A Lumination AI API key ([get one at lumination.ai](https://lumination.ai))
+- A Lumination AI API key (see above)
 
 ## Installation
 
