@@ -17,8 +17,8 @@
 /**
  * Course generator for the Lumination plugin.
  *
- * Orchestrates the full course generation workflow including outline extraction,
- * Lumination course creation, and Moodle course mapping.
+ * Orchestrates the two-step course workflow: extract an editable guide (outline)
+ * from an uploaded document, then build a Moodle course from the reviewed outline.
  *
  * @package    local_lumination
  * @copyright  2026 Lumination AI <https://lumination.ai>
@@ -34,12 +34,14 @@ require_once($GLOBALS['CFG']->dirroot . '/course/modlib.php');
 require_once($GLOBALS['CFG']->dirroot . '/lib/resourcelib.php');
 
 /**
- * Orchestrates the full course generation workflow.
+ * Orchestrates the two-step course generation workflow.
  *
- * This class handles:
- * 1. Extracting a guide/outline from documents or text.
- * 2. Creating a Lumination course via the API.
- * 3. Mapping the Lumination course structure to a Moodle course with sections and page activities.
+ * 1. extract_guide(): upload a document to POST /course/guide and return an
+ *    editable outline (modules + lessons).
+ * 2. The user reviews/edits the outline.
+ * 3. create_moodle_course_from_outline(): build a Moodle course from the edited
+ *    outline, generating each lesson's content via the AI Tutor /tutor endpoint,
+ *    and map modules to sections and lessons to page activities.
  *
  * @package    local_lumination
  * @copyright  2026 Lumination AI <https://lumination.ai>
@@ -59,303 +61,145 @@ class course_generator {
     }
 
     /**
-     * Generate a course outline from extracted text using the agent chat endpoint.
+     * Extract an editable course guide (outline) from an uploaded document.
      *
-     * Since /process-material may be unavailable, this uses /agent/chat to generate
-     * a structured JSON outline from the text content directly. The text is truncated
-     * to approximately 15000 characters to avoid token limits.
+     * Calls the synchronous POST /course/guide endpoint, which returns a
+     * structured, editable outline immediately (no polling).
      *
-     * @param string $text Extracted document text to generate an outline from.
-     * @param string $title Course title hint for the AI prompt.
-     * @param string $instructions Extra constraints such as audience, tone, or scope.
-     * @param string $language Language code for the generated outline (e.g. 'en').
-     * @return array Parsed outline with 'title' and 'modules' keys, where each module
-     *               contains 'title', 'description', and 'lessons' entries.
-     * @throws \moodle_exception If the API returns empty or unparseable content.
+     * @param \stored_file $file The uploaded source document (PDF/DOCX/TXT).
+     * @param string $title Optional course title hint.
+     * @param string $instructions Optional extra constraints (audience, tone, scope).
+     * @param string $language Language code (e.g. 'en').
+     * @return array ['guide_uuid' => string, 'title' => string, 'outline' => array, 'objectives' => array]
+     *               where 'outline' is ['title' => string, 'modules' => [['title', 'description', 'lessons' => [['title']]]]].
+     * @throws \moodle_exception If the API does not return a guide.
      */
-    public function generate_outline_from_text(
-        string $text,
+    public function extract_guide(
+        \stored_file $file,
         string $title = '',
         string $instructions = '',
         string $language = 'en'
     ): array {
-        // Truncate text to avoid token limits (keep ~15000 chars).
-        $maxchars = 15000;
-        if (strlen($text) > $maxchars) {
-            $text = substr($text, 0, $maxchars) . "\n\n[... content truncated for outline generation ...]";
-        }
-
-        $prompt = "You are a course design assistant. Based on the following document content, "
-            . "create a structured course outline.\n\n"
-            . "Course title: " . ($title ?: "Generate an appropriate title") . "\n"
-            . ($instructions ? "Instructions: {$instructions}\n" : "")
-            . "Language: {$language}\n\n"
-            . "Use this markdown format exactly:\n\n"
-            . "## Module 1: Title Here\n"
-            . "Description of the module.\n"
-            . "1. Lesson Title One\n"
-            . "2. Lesson Title Two\n\n"
-            . "## Module 2: Title Here\n"
-            . "Description.\n"
-            . "1. Lesson Title\n\n"
-            . "Create 3-8 modules with 2-5 lessons each.\n\n"
-            . "Document content:\n" . $text;
-
-        $result = $this->api->post(
-            '/lumination-ai/api/v1/agent/chat',
-            [
-                'persist' => false,
-                'stream' => false,
-                'messages' => [
-                    ['role' => 'user', 'content' => $prompt],
-                ],
-            ]
-        );
-
-        usage_logger::log('generate_outline', $result);
-
-        // Extract the response text (double-nested).
-        $responsetext = $result['response']['response']
-            ?? $result['response']
-            ?? '';
-
-        if (empty($responsetext) || !is_string($responsetext)) {
-            throw new \moodle_exception('errornocontent', 'local_lumination');
-        }
-
-        // Try JSON first (in case the agent returns it).
-        $json = $responsetext;
-        $tick = chr(96);
-        $codeblockpattern = '/' . $tick . '{3}(?:json)?\s*([\s\S]*?)' . $tick . '{3}/';
-        if (preg_match($codeblockpattern, $json, $matches)) {
-            $json = $matches[1];
-        }
-        $outline = json_decode(trim($json), true);
-        if (!empty($outline['modules'])) {
-            $outline['title'] = $outline['title'] ?? $title;
-            return $outline;
-        }
-
-        // Parse markdown response into structured outline.
-        return $this->parse_markdown_outline($responsetext, $title);
-    }
-
-    /**
-     * Parse a markdown-formatted outline into a structured array.
-     *
-     * Handles formats like:
-     *   ## Module 1: Title
-     *   Description text
-     *   1. Lesson title
-     *   2. Lesson title
-     *
-     * @param string $text The markdown text to parse.
-     * @param string $title The course title to include in the returned structure.
-     * @return array Parsed outline with 'title' and 'modules' keys.
-     * @throws \moodle_exception If no modules could be parsed from the text.
-     */
-    private function parse_markdown_outline(string $text, string $title): array {
-        $modules = [];
-        $currentmodule = null;
-
-        $lines = explode("\n", $text);
-        foreach ($lines as $line) {
-            $line = trim($line);
-
-            // Match module headers: "## Module 1: Title" or "## Title".
-            if (preg_match('/^#{1,3}\s+(?:Module\s*\d*[:.]\s*)?(.+)/i', $line, $m)) {
-                if ($currentmodule !== null) {
-                    $modules[] = $currentmodule;
-                }
-                $currentmodule = [
-                    'title' => trim($m[1]),
-                    'description' => '',
-                    'lessons' => [],
-                ];
-                continue;
-            }
-
-            if ($currentmodule === null) {
-                continue;
-            }
-
-            // Match numbered lessons: "1. Lesson Title" or "- Lesson Title".
-            if (
-                preg_match('/^\d+[\.\)]\s+(.+)/', $line, $m) ||
-                preg_match('/^[-*]\s+(.+)/', $line, $m)
-            ) {
-                $lessontitle = trim($m[1]);
-                // Clean up: remove trailing descriptions after " - ".
-                $lessontitle = preg_replace('/\s*[-\x{2013}]\s+.*$/u', '', $lessontitle);
-                $currentmodule['lessons'][] = ['title' => $lessontitle];
-                continue;
-            }
-
-            // Non-empty lines that are not headers or list items are description.
-            if (!empty($line) && empty($currentmodule['lessons'])) {
-                $currentmodule['description'] .= ($currentmodule['description'] ? ' ' : '') . $line;
-            }
-        }
-
-        if ($currentmodule !== null) {
-            $modules[] = $currentmodule;
-        }
-
-        if (empty($modules)) {
-            throw new \moodle_exception(
-                'errorapifailed',
-                'local_lumination',
-                '',
-                'Could not parse course outline from AI response'
-            );
-        }
-
-        return [
-            'title' => $title,
-            'modules' => $modules,
+        $data = [
+            'file_b64' => base64_encode($file->get_content()),
+            'file_name' => $file->get_filename(),
         ];
-    }
-
-    /**
-     * Generate a course outline (guide) from uploaded documents via the guides:extract endpoint.
-     *
-     * Requires document_uuids obtained from the /process-material endpoint.
-     * Use generate_outline_from_text() as a fallback when document UUIDs are not available.
-     *
-     * @param array $documentuuids Array of document UUIDs from the process-material endpoint.
-     * @param string $title Optional course title hint to guide extraction.
-     * @param string $instructions Optional extra constraints such as audience, tone, or scope.
-     * @param string $language Language code for the generated outline (e.g. 'en').
-     * @return array The API result containing the extracted guide data.
-     * @throws \moodle_exception If the API does not return guide content.
-     */
-    public function generate_outline(
-        array $documentuuids,
-        string $title = '',
-        string $instructions = '',
-        string $language = 'en'
-    ): array {
-        $data = ['document_uuids' => $documentuuids];
         if (!empty($title)) {
             $data['title'] = $title;
         }
         if (!empty($instructions)) {
             $data['instructions'] = $instructions;
         }
+        if (!empty($language)) {
+            $data['language_code'] = $language;
+        }
 
-        $result = $this->api->post('/lumination-ai/api/v1/features/courses/guides:extract', $data);
-
+        // POST /course/guide is synchronous -- it returns the guide directly.
+        $result = $this->api->post('/course/guide', $data);
         usage_logger::log('generate_outline', $result);
 
-        if (empty($result['guide'])) {
+        if (empty($result['guide_uuid']) || empty($result['guide'])) {
             throw new \moodle_exception('errornocontent', 'local_lumination');
         }
 
-        return $result;
-    }
-
-    /**
-     * Create a Lumination course from a guide or documents via the API.
-     *
-     * This is step 2 of the course generation workflow. It sends the course creation
-     * request to the Lumination API and returns the resulting course data including
-     * the course UUID needed for subsequent operations.
-     *
-     * @param string $title The course title.
-     * @param string[] $documentuuids Source document UUIDs from the process-material endpoint.
-     * @param string $guideuuid Optional guide UUID from the outline generation step.
-     * @param string $language Language code for the course content (e.g. 'en').
-     * @return array Course data from the API including 'course_uuid'.
-     * @throws \moodle_exception If the API does not return a course_uuid.
-     */
-    public function create_lumination_course(
-        string $title,
-        array $documentuuids,
-        string $guideuuid = '',
-        string $language = 'en'
-    ): array {
-        $data = [
-            'title' => $title,
-            'generate_async' => false,
-            'lang_code' => $language,
+        return [
+            'guide_uuid' => $result['guide_uuid'],
+            'title' => $result['title'] ?? ($result['guide']['course_title'] ?? $title),
+            'outline' => $this->guide_to_outline($result['guide'], $title),
+            'objectives' => $result['guide']['learning_objectives'] ?? [],
         ];
-
-        if (!empty($guideuuid)) {
-            $data['guide_uuid'] = $guideuuid;
-        }
-        if (!empty($documentuuids)) {
-            $data['document_uuids'] = $documentuuids;
-        }
-
-        $result = $this->api->post('/lumination-ai/api/v1/features/courses', $data);
-
-        usage_logger::log('create_course', $result);
-
-        if (empty($result['course_uuid'])) {
-            throw new \moodle_exception(
-                'errorapifailed',
-                'local_lumination',
-                '',
-                'No course_uuid returned'
-            );
-        }
-
-        return $result;
     }
 
     /**
-     * Fetch the full course structure from the Lumination API.
+     * Convert an AI Tutor guide structure into the plugin's outline shape.
      *
-     * Retrieves the complete course definition including all modules and their
-     * lessons for the given Lumination course UUID.
-     *
-     * @param string $courseuuid The Lumination course UUID to fetch.
-     * @return array Course structure containing modules and lessons.
+     * @param array $guide The 'guide' object from POST /course/guide.
+     * @param string $fallbacktitle Title to use if the guide has none.
+     * @return array ['title' => string, 'modules' => [['title', 'description', 'lessons' => [['title']]]]]
      */
-    public function get_course_structure(string $courseuuid): array {
-        return $this->api->get("/lumination-ai/api/v1/features/courses/{$courseuuid}");
+    private function guide_to_outline(array $guide, string $fallbacktitle): array {
+        $modules = [];
+        foreach (($guide['course_structure'] ?? []) as $module) {
+            $lessons = [];
+            foreach (($module['lesson_names'] ?? []) as $lessonname) {
+                $lessons[] = ['title' => $lessonname];
+            }
+            $modules[] = [
+                'title' => $module['module_name'] ?? '',
+                'description' => $module['module_description'] ?? '',
+                'lessons' => $lessons,
+            ];
+        }
+
+        return [
+            'title' => $guide['course_title'] ?? $fallbacktitle,
+            'modules' => $modules,
+        ];
     }
 
     /**
-     * Generate content for a single lesson via the Lumination API.
+     * Persist the user's edited outline back to the course guide (best-effort).
      *
-     * Triggers content generation for a specific lesson within a Lumination course.
-     * The API populates the lesson with educational content based on the source material.
+     * Saves the reviewed structure via PUT /course/guide/{guide_uuid}. Failures
+     * never block Moodle course creation, which is built from the edited outline
+     * directly.
      *
-     * @param string $courseuuid The Lumination course UUID containing the lesson.
-     * @param string $lessonuuid The UUID of the lesson to generate content for.
-     * @return array Lesson data with generated content from the API.
+     * @param string $guideuuid The guide UUID from extract_guide().
+     * @param array $modules The edited modules from the review form.
+     * @param string $title The (possibly edited) course title.
+     * @return void
      */
-    public function generate_lesson_content(string $courseuuid, string $lessonuuid): array {
-        $result = $this->api->post(
-            "/lumination-ai/api/v1/features/courses/{$courseuuid}/lessons/{$lessonuuid}:generate"
-        );
-        usage_logger::log('generate_lesson', $result);
-        return $result;
+    public function save_guide(string $guideuuid, array $modules, string $title): void {
+        if (empty($guideuuid)) {
+            return;
+        }
+
+        // Convert the edited outline back into the guide's course_structure shape.
+        $structure = [];
+        foreach ($modules as $module) {
+            $lessonnames = [];
+            foreach (($module['lessons'] ?? []) as $lesson) {
+                $lessonnames[] = $lesson['title'] ?? '';
+            }
+            $structure[] = [
+                'module_name' => $module['title'] ?? '',
+                'lesson_names' => $lessonnames,
+            ];
+        }
+
+        try {
+            // Preserve the guide's other fields; overwrite only title and structure.
+            $current = $this->api->get('/course/guide/' . rawurlencode($guideuuid));
+            $guide = $current['guide'] ?? [];
+            $guide['course_title'] = $title;
+            $guide['course_structure'] = $structure;
+            $this->api->put('/course/guide/' . rawurlencode($guideuuid), [
+                'guide' => $guide,
+                'title' => $title,
+            ]);
+        } catch (\Exception $e) {
+            debugging('Lumination save_guide failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        }
     }
 
     /**
-     * Create a Moodle course directly from an outline and source text.
+     * Build a Moodle course from a reviewed outline.
      *
-     * This method bypasses the Lumination course UUID workflow and instead generates
-     * lesson content on-the-fly using the agent chat endpoint. Each lesson in the
-     * provided modules array becomes a mod_page activity in the corresponding
-     * Moodle course section.
+     * Each module becomes a course section and each lesson becomes a mod_page
+     * activity whose HTML content is generated via the AI Tutor /tutor endpoint.
      *
-     * @param array $modules Edited modules array from the review form, each containing
-     *                       'title', 'description', and 'lessons' keys.
+     * @param array $modules Edited modules, each ['title', 'description', 'lessons' => [['title']]].
      * @param string $title The full name for the Moodle course.
-     * @param int $categoryid Moodle course category ID to place the course in.
-     * @param string $sourcetext Original document text used to ground lesson content generation.
-     * @param string $language Language code for the generated content (e.g. 'en').
-     * @return \stdClass The created Moodle course object with additional lumination_sections
-     *                   and lumination_activities properties.
+     * @param int $categoryid Moodle course category ID.
+     * @param array $objectives Course learning objectives used to ground lesson content.
+     * @param string $language Language code for generated content (e.g. 'en').
+     * @return \stdClass The created Moodle course with lumination_sections and lumination_activities.
      */
-    public function create_moodle_course_from_text(
+    public function create_moodle_course_from_outline(
         array $modules,
         string $title,
         int $categoryid,
-        string $sourcetext = '',
+        array $objectives = [],
         string $language = 'en'
     ): \stdClass {
         global $DB;
@@ -379,9 +223,6 @@ class course_generator {
 
         $course = create_course($courseobj);
         $activitycount = 0;
-
-        // Truncate source text for lesson generation prompts.
-        $contexttext = substr($sourcetext, 0, 10000);
 
         foreach ($modules as $i => $module) {
             $sectionnumber = $i + 1;
@@ -409,11 +250,11 @@ class course_generator {
             foreach ($lessons as $lesson) {
                 $lessontitle = $lesson['title'] ?? 'Lesson';
 
-                // Generate lesson content via agent chat.
-                $lessoncontent = $this->generate_lesson_content_from_text(
+                $lessoncontent = $this->generate_lesson_content(
                     $lessontitle,
                     $moduletitle,
-                    $contexttext,
+                    $title,
+                    $objectives,
                     $language
                 );
 
@@ -431,57 +272,58 @@ class course_generator {
     }
 
     /**
-     * Generate lesson content using the agent chat endpoint with source text as context.
+     * Generate HTML content for a single lesson via the AI Tutor /tutor endpoint.
      *
-     * Constructs a prompt requesting HTML-formatted educational content for the given
-     * lesson and sends it to the Lumination agent chat API. If the API call fails or
-     * returns empty content, a placeholder HTML string is returned instead.
+     * The lesson and module titles come from the document-derived guide, so the
+     * generated content stays on-topic. Course learning objectives are included
+     * for extra grounding. Returns placeholder HTML if generation fails.
      *
-     * @param string $lessontitle The title of the lesson to generate content for.
-     * @param string $moduletitle The title of the parent module for context.
-     * @param string $sourcetext Truncated source material to ground the content generation.
+     * @param string $lessontitle The lesson title.
+     * @param string $moduletitle The parent module title (for context).
+     * @param string $coursetitle The course title (for context).
+     * @param array $objectives Course learning objectives (for grounding).
      * @param string $language Language code for the generated content (e.g. 'en').
-     * @return string Generated HTML content for the lesson, or a placeholder on failure.
+     * @return string Generated HTML content, or a placeholder on failure.
      */
-    private function generate_lesson_content_from_text(
+    private function generate_lesson_content(
         string $lessontitle,
         string $moduletitle,
-        string $sourcetext,
+        string $coursetitle,
+        array $objectives,
         string $language = 'en'
     ): string {
-        $prompt = "You are a course content writer. Write educational content for a lesson.\n\n"
+        $objtext = '';
+        if (!empty($objectives)) {
+            $objtext = "Course learning objectives:\n- " . implode("\n- ", array_slice($objectives, 0, 8)) . "\n\n";
+        }
+
+        $prompt = "You are a course content writer. Write educational content for one lesson of an online course.\n\n"
+            . "Course: {$coursetitle}\n"
             . "Module: {$moduletitle}\n"
             . "Lesson: {$lessontitle}\n"
             . "Language: {$language}\n\n"
-            . "Write the lesson content in HTML format. "
-            . "Do NOT include the lesson title as a heading -- it is already displayed separately by the platform.\n"
+            . $objtext
+            . "Write the lesson content in HTML. Do NOT include the lesson title as a heading -- "
+            . "it is already displayed separately by the platform.\n"
             . "Start directly with the content. Include:\n"
-            . "- Clear explanations based on the source material\n"
+            . "- Clear explanations of the lesson topic\n"
             . "- Key concepts highlighted with <strong> tags\n"
-            . "- Organized with <h3> subheadings where appropriate\n"
-            . "- 300-600 words\n\n"
-            . "Base the content on this source material:\n" . $sourcetext;
+            . "- Organised with <h3> subheadings where appropriate\n"
+            . "- 300-600 words\n"
+            . "Return only the HTML content, with no code fences.";
 
         try {
-            $result = $this->api->post(
-                '/lumination-ai/api/v1/agent/chat',
-                [
-                    'persist' => false,
-                    'stream' => false,
-                    'messages' => [
-                        ['role' => 'user', 'content' => $prompt],
-                    ],
-                ]
-            );
+            $job = $this->api->run('/tutor', ['message' => $prompt]);
+            usage_logger::log('generate_lesson', $job);
 
-            usage_logger::log('generate_lesson', $result);
-
-            $content = $result['response']['response'] ?? $result['response'] ?? '';
+            $content = $job['result']['reply'] ?? '';
             if (!empty($content) && is_string($content)) {
-                // Strip leading markdown headings that duplicate the lesson title.
+                // Strip a leading markdown/HTML heading that duplicates the lesson title.
                 $content = preg_replace('/^\s*#{1,4}\s+.*?\n+/', '', $content, 1);
-                // Strip leading HTML headings that duplicate the lesson title.
                 $content = preg_replace('/^\s*<h[1-4][^>]*>.*?<\/h[1-4]>\s*/i', '', $content, 1);
+                // Strip surrounding code fences if the model added them.
+                $content = preg_replace('/^\s*```(?:html)?\s*/i', '', $content);
+                $content = preg_replace('/\s*```\s*$/', '', $content);
                 return trim($content);
             }
         } catch (\Exception $e) {
@@ -494,126 +336,7 @@ class course_generator {
     }
 
     /**
-     * Create a Moodle course from the Lumination course structure.
-     *
-     * This is step 3 of the full course generation workflow. It fetches the complete
-     * course structure from the Lumination API, then maps each Lumination module to a
-     * Moodle course section and each lesson to a mod_page activity. Optionally accepts
-     * edited modules from the review form to override the API response.
-     *
-     * @param string $courseuuid The Lumination course UUID to build the Moodle course from.
-     * @param string $title The full name for the Moodle course.
-     * @param int $categoryid Moodle course category ID to place the course in.
-     * @param array|null $editedmodules Optional edited outline from the review form. When
-     *                                  provided, these modules override the API response.
-     * @return \stdClass The created Moodle course object with additional lumination_sections
-     *                   and lumination_activities properties.
-     */
-    public function create_moodle_course(
-        string $courseuuid,
-        string $title,
-        int $categoryid,
-        ?array $editedmodules = null
-    ): \stdClass {
-        global $DB, $USER;
-
-        // Fetch the full Lumination course structure.
-        $lumcourse = $this->get_course_structure($courseuuid);
-        $coursedata = $lumcourse['course'] ?? $lumcourse;
-
-        // Use the edited modules if provided, otherwise use API response.
-        $modules = $editedmodules ?? $coursedata['modules'] ?? [];
-
-        // Generate a unique shortname.
-        $shortname = $this->generate_unique_shortname($title);
-
-        // Create the Moodle course.
-        $courseobj = new \stdClass();
-        $courseobj->fullname = $title;
-        $courseobj->shortname = $shortname;
-        $courseobj->category = $categoryid;
-        $courseobj->format = 'topics';
-        $courseobj->numsections = count($modules);
-        $courseobj->visible = 1;
-        $courseobj->enablecompletion = 1;
-
-        $course = create_course($courseobj);
-
-        $activitycount = 0;
-
-        // Map each Lumination module to a Moodle section.
-        foreach ($modules as $i => $module) {
-            $sectionnumber = $i + 1;
-            $moduletitle = $module['title'] ?? $module['name'] ?? 'Module ' . ($i + 1);
-            $moduledesc = $module['description'] ?? '';
-
-            // Update section name and summary.
-            $section = $DB->get_record(
-                'course_sections',
-                [
-                    'course' => $course->id,
-                    'section' => $sectionnumber,
-                ]
-            );
-            if ($section) {
-                $section->name = $moduletitle;
-                $section->summary = $moduledesc;
-                $section->summaryformat = \FORMAT_HTML;
-                course_update_section(
-                    $course,
-                    $section,
-                    ['name' => $moduletitle, 'summary' => $moduledesc]
-                );
-            }
-
-            // Map each lesson to a mod_page activity.
-            $lessons = $module['lessons'] ?? $module['topics'] ?? [];
-            foreach ($lessons as $lesson) {
-                $lessontitle = $lesson['title'] ?? $lesson['name'] ?? 'Lesson';
-                $lessonuuid = $lesson['lesson_uuid'] ?? $lesson['uuid'] ?? '';
-
-                // Generate lesson content from Lumination (if we have a UUID).
-                $lessoncontent = '';
-                if (!empty($lessonuuid)) {
-                    try {
-                        $lessondata = $this->generate_lesson_content($courseuuid, $lessonuuid);
-                        $lessoncontent = $lessondata['lesson']['content']
-                            ?? $lessondata['content']
-                            ?? $lessondata['response']
-                            ?? '';
-                    } catch (\Exception $e) {
-                        // If lesson generation fails, use a placeholder.
-                        $lessoncontent = '<p><em>Content generation pending. '
-                            . 'Edit this page to add content.</em></p>';
-                    }
-                }
-
-                if (empty($lessoncontent)) {
-                    $lessoncontent = '<p><em>Content will be generated. '
-                        . 'Edit this page to add or modify content.</em></p>';
-                }
-
-                // Create mod_page activity.
-                $this->add_page_activity($course, $sectionnumber, $lessontitle, $lessoncontent);
-                $activitycount++;
-            }
-        }
-
-        rebuild_course_cache($course->id, true);
-
-        // Store metadata about the generation for reference.
-        $course->lumination_sections = count($modules);
-        $course->lumination_activities = $activitycount;
-
-        return $course;
-    }
-
-    /**
      * Add a Page activity (mod_page) to a course section.
-     *
-     * Creates a new mod_page course module in the specified section with the given
-     * name and HTML content. The page is configured with open display mode and
-     * heading printing enabled.
      *
      * @param \stdClass $course The Moodle course object to add the activity to.
      * @param int $sectionnumber The section number within the course (1-based).
@@ -661,10 +384,6 @@ class course_generator {
 
     /**
      * Generate a unique short name for a Moodle course.
-     *
-     * Creates a shortname by converting the title to uppercase alphanumeric characters
-     * (max 15 chars), then appends an incrementing counter suffix if the shortname
-     * already exists in the database.
      *
      * @param string $title The course title to derive the shortname from.
      * @return string A unique shortname that does not conflict with existing courses.

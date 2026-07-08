@@ -58,8 +58,8 @@ class upload_form extends \moodleform {
         // File upload.
         $fileoptions = [
             'maxbytes' => 50 * 1024 * 1024,
-            'maxfiles' => 10,
-            'accepted_types' => ['.pdf', '.doc', '.docx', '.txt', '.pptx', '.ppt'],
+            'maxfiles' => 1,
+            'accepted_types' => ['.pdf', '.doc', '.docx', '.txt'],
         ];
         $mform->addElement(
             'filemanager',

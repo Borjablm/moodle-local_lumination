@@ -45,8 +45,8 @@ final class usage_logger_test extends \advanced_testcase {
         $this->setAdminUser();
 
         $apiresponse = [
-            'token_count_input' => 150,
-            'token_count_output' => 300,
+            'input_tokens' => 150,
+            'output_tokens' => 300,
             'credits_charged' => 0.0025,
             'response' => ['response' => 'Some content'],
         ];
@@ -91,13 +91,13 @@ final class usage_logger_test extends \advanced_testcase {
         $this->setAdminUser();
 
         usage_logger::log('generate_outline', [
-            'token_count_input' => 100,
-            'token_count_output' => 200,
+            'input_tokens' => 100,
+            'output_tokens' => 200,
             'credits_charged' => 0.5,
         ]);
         usage_logger::log('generate_lesson', [
-            'token_count_input' => 50,
-            'token_count_output' => 150,
+            'input_tokens' => 50,
+            'output_tokens' => 150,
             'credits_charged' => 0.3,
         ]);
 
@@ -115,9 +115,9 @@ final class usage_logger_test extends \advanced_testcase {
     public function test_get_by_action(): void {
         $this->setAdminUser();
 
-        usage_logger::log('generate_lesson', ['token_count_input' => 10, 'token_count_output' => 20, 'credits_charged' => 0.1]);
-        usage_logger::log('generate_lesson', ['token_count_input' => 15, 'token_count_output' => 25, 'credits_charged' => 0.2]);
-        usage_logger::log('generate_outline', ['token_count_input' => 100, 'token_count_output' => 200, 'credits_charged' => 1.0]);
+        usage_logger::log('generate_lesson', ['input_tokens' => 10, 'output_tokens' => 20, 'credits_charged' => 0.1]);
+        usage_logger::log('generate_lesson', ['input_tokens' => 15, 'output_tokens' => 25, 'credits_charged' => 0.2]);
+        usage_logger::log('generate_outline', ['input_tokens' => 100, 'output_tokens' => 200, 'credits_charged' => 1.0]);
 
         $byaction = usage_logger::get_by_action(30);
 

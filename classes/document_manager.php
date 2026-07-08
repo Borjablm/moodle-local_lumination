@@ -25,10 +25,11 @@
 namespace local_lumination;
 
 /**
- * Manages document uploads to the Lumination API and tracks document UUIDs.
+ * Tracks Lumination document UUIDs by Moodle context.
  *
- * Provides methods to convert files to text via the API, upload files as
- * persistent documents, and retrieve document UUIDs by context.
+ * The AI Tutor API v1 accepts documents inline (file_b64) rather than as
+ * pre-registered uploads, so course generation no longer pre-uploads files.
+ * This class retains lookup of any previously stored document UUIDs.
  *
  * @package    local_lumination
  * @copyright  2026 Lumination AI <https://lumination.ai>
@@ -45,104 +46,6 @@ class document_manager {
      */
     public function __construct(?api_client $api = null) {
         $this->api = $api ?? new api_client();
-    }
-
-    /**
-     * Convert a Moodle stored_file to text using the material-to-text endpoint.
-     *
-     * This is the primary method for text extraction -- it extracts text from
-     * PDFs, docs, etc. without needing the /process-material endpoint (which
-     * requires a rate limiter).
-     *
-     * @param \stored_file $file The Moodle stored file to convert.
-     * @return string The extracted text content.
-     * @throws \moodle_exception If the API call fails or returns no text.
-     */
-    public function file_to_text(\stored_file $file): string {
-        $content = $file->get_content();
-        $b64content = base64_encode($content);
-        $mimetype = $file->get_mimetype();
-        $filename = $file->get_filename();
-
-        $result = $this->api->post(
-            '/api/material-to-text',
-            [
-                'content' => $b64content,
-                'content_type' => $mimetype,
-                'filename' => $filename,
-            ]
-        );
-
-        if (empty($result['success']) || empty($result['text'])) {
-            $error = $result['error'] ?? 'Unknown error';
-            throw new \moodle_exception(
-                'errorapifailed',
-                'local_lumination',
-                '',
-                $error
-            );
-        }
-
-        return $result['text'];
-    }
-
-    /**
-     * Upload a Moodle stored_file to the Lumination API as a persistent document.
-     *
-     * Uses the /process-material endpoint to upload and process the file.
-     * Stores the returned document UUID in the local_lumination_documents table.
-     *
-     * @param \stored_file $file The Moodle stored file to upload.
-     * @param int $userid The ID of the user performing the upload.
-     * @param int $contextid The Moodle context ID for tracking the document.
-     * @return string The Lumination document UUID.
-     * @throws \moodle_exception If the API call fails or no document UUID is returned.
-     */
-    public function upload_file(\stored_file $file, int $userid, int $contextid): string {
-        global $DB;
-
-        $content = $file->get_content();
-        $b64content = base64_encode($content);
-        $filename = $file->get_filename();
-        $mimetype = $file->get_mimetype();
-
-        $result = $this->api->post(
-            '/lumination-ai/api/v1/process-material',
-            [
-                'items' => [
-                    [
-                        'content' => $b64content,
-                        'content_type' => $mimetype,
-                        'filename' => $filename,
-                    ],
-                ],
-            ]
-        );
-
-        $documentuuid = $result['items'][0]['document_uuid']
-            ?? $result['document_uuid']
-            ?? $result['items'][0]['id']
-            ?? null;
-
-        if (empty($documentuuid)) {
-            $resultkeys = implode(', ', array_keys($result));
-            throw new \moodle_exception(
-                'errorapifailed',
-                'local_lumination',
-                '',
-                'No document_uuid in upload response. Keys: ' . $resultkeys
-            );
-        }
-
-        $record = new \stdClass();
-        $record->userid = $userid;
-        $record->contextid = $contextid;
-        $record->document_uuid = $documentuuid;
-        $record->filename = $file->get_filename();
-        $record->timecreated = time();
-        $DB->insert_record('local_lumination_documents', $record);
-
-        return $documentuuid;
     }
 
     /**

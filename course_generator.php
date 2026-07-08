@@ -15,9 +15,9 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Course Generator - Step 1: Upload documents and generate outline.
+ * Course Generator - Step 1: Upload a document and generate an editable outline.
  *
- * Flow: Upload files -> extract text via API -> generate outline via agent chat -> review.
+ * Flow: Upload a document -> POST /course/guide returns an editable outline -> review.
  *
  * URL: /local/lumination/course_generator.php
  *
@@ -54,10 +54,9 @@ if ($form->is_cancelled()) {
 }
 
 if ($data = $form->get_data()) {
-    $docmanager = new \local_lumination\document_manager($api);
     $generator = new \local_lumination\course_generator($api);
 
-    // Step 1: Extract text from uploaded files.
+    // Get the uploaded document. The guide is built from a single source file.
     $fs = get_file_storage();
     $usercontext = context_user::instance($USER->id);
     $files = $fs->get_area_files(
@@ -65,42 +64,30 @@ if ($data = $form->get_data()) {
         'user',
         'draft',
         $data->documents,
-        '',
+        'itemid, filepath, filename',
         false
     );
 
-    $alltext = '';
-    $errors = [];
+    $sourcefile = null;
     foreach ($files as $file) {
-        if ($file->get_filename() === '.') {
-            continue;
-        }
-        try {
-            $text = $docmanager->file_to_text($file);
-            $alltext .= "\n\n--- " . $file->get_filename() . " ---\n\n" . $text;
-        } catch (\Exception $e) {
-            $errors[] = $file->get_filename() . ': ' . $e->getMessage();
+        if ($file->get_filename() !== '.') {
+            $sourcefile = $file;
+            break;
         }
     }
 
-    if (empty($alltext)) {
+    if (!$sourcefile) {
         echo $OUTPUT->header();
-        if (!empty($errors)) {
-            foreach ($errors as $error) {
-                echo $OUTPUT->notification($error, 'error');
-            }
-        } else {
-            echo $OUTPUT->notification(get_string('errornocontent', 'local_lumination'), 'error');
-        }
+        echo $OUTPUT->notification(get_string('errornocontent', 'local_lumination'), 'error');
         $form->display();
         echo $OUTPUT->footer();
         die;
     }
 
-    // Step 2: Generate course outline using the agent chat.
+    // Extract an editable course guide (outline) from the document.
     try {
-        $outline = $generator->generate_outline_from_text(
-            $alltext,
+        $guide = $generator->extract_guide(
+            $sourcefile,
             $data->title,
             $data->instructions ?? '',
             $data->language ?? 'en'
@@ -109,8 +96,9 @@ if ($data = $form->get_data()) {
         // Store in session cache for the review page.
         $cache = cache::make('local_lumination', 'outline');
         $cache->set('data', [
-            'outline' => $outline,
-            'source_text' => $alltext,
+            'outline' => $guide['outline'],
+            'guide_uuid' => $guide['guide_uuid'],
+            'objectives' => $guide['objectives'],
             'title' => $data->title,
             'categoryid' => $data->categoryid,
             'language' => $data->language,

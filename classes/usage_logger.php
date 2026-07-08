@@ -35,8 +35,8 @@ class usage_logger {
     /**
      * Log an API call's usage metrics.
      *
-     * Extracts token_count_input, token_count_output, and credits_charged
-     * from the API response and inserts a record into local_lumination_usage.
+     * Extracts input_tokens, output_tokens, and credits_charged from the API
+     * job envelope and inserts a record into local_lumination_usage.
      *
      * @param string $action The action that triggered the API call (e.g. 'generate_outline').
      * @param array $apiresponse The decoded JSON response from the Lumination API.
@@ -50,8 +50,8 @@ class usage_logger {
         $record->userid = $USER->id ?? 0;
         $record->courseid = $courseid;
         $record->action = substr($action, 0, 100);
-        $record->tokens_in = (int) ($apiresponse['token_count_input'] ?? 0);
-        $record->tokens_out = (int) ($apiresponse['token_count_output'] ?? 0);
+        $record->tokens_in = (int) ($apiresponse['input_tokens'] ?? 0);
+        $record->tokens_out = (int) ($apiresponse['output_tokens'] ?? 0);
         $record->credits = (float) ($apiresponse['credits_charged'] ?? 0);
         $record->timecreated = time();
 

@@ -15,10 +15,10 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Course Generator - Step 2: Review outline and create the Moodle course.
+ * Course Generator - Step 2: Review the outline and create the Moodle course.
  *
- * Text-based flow: Uses the outline from agent chat + source text to generate
- * lesson content directly, without needing Lumination course/document UUIDs.
+ * Persists the reviewed outline back to the course guide, then builds the Moodle
+ * course from the edited outline, generating each lesson's content via the API.
  *
  * URL: /local/lumination/review_outline.php
  *
@@ -44,7 +44,8 @@ $cache = cache::make('local_lumination', 'outline');
 $cached = $cache->get('data');
 
 $outline = $cached['outline'] ?? null;
-$sourcetext = $cached['source_text'] ?? '';
+$guideuuid = $cached['guide_uuid'] ?? '';
+$objectives = $cached['objectives'] ?? [];
 $title = $cached['title'] ?? '';
 $categoryid = $cached['categoryid'] ?? 1;
 $language = $cached['language'] ?? 'en';
@@ -57,7 +58,7 @@ $form = new \local_lumination\form\review_outline_form(
     null,
     [
         'outline' => $outline,
-        'guide_uuid' => '',
+        'guide_uuid' => $guideuuid,
         'title' => $title,
         'categoryid' => $categoryid,
         'document_uuids' => [],
@@ -79,11 +80,14 @@ if ($data = $form->get_data()) {
     $categoryid = $data->categoryid;
 
     try {
-        $course = $generator->create_moodle_course_from_text(
+        // Persist the reviewed outline back to the course guide (best-effort).
+        $generator->save_guide($guideuuid, $editedmodules, $coursetitle);
+
+        $course = $generator->create_moodle_course_from_outline(
             $editedmodules,
             $coursetitle,
             $categoryid,
-            $sourcetext,
+            $objectives,
             $language
         );
 

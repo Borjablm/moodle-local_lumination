@@ -35,8 +35,14 @@ namespace local_lumination;
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class api_client {
-    /** @var string Production API base URL. */
-    private const BASE_URL = 'https://ai-sv-production.lumination.ai';
+    /** @var string Default AI Tutor API base URL (staging). Includes the /api/v1 prefix. */
+    private const DEFAULT_BASE_URL = 'https://stage.ai-tutor.ai/api/v1';
+
+    /** @var int Seconds between polls when waiting for an async job. */
+    private const POLL_INTERVAL = 3;
+
+    /** @var int Maximum seconds to wait for an async job to complete. */
+    private const POLL_MAX_WAIT = 600;
 
     /** @var string The API key for authentication. */
     private string $apikey;
@@ -56,6 +62,18 @@ class api_client {
     }
 
     /**
+     * Resolve the API base URL from settings, falling back to the staging default.
+     *
+     * The base URL includes the /api/v1 prefix; endpoints are short paths like '/tutor'.
+     *
+     * @return string Base URL with no trailing slash.
+     */
+    private function base_url(): string {
+        $configured = get_config('local_lumination', 'baseurl');
+        return rtrim(!empty($configured) ? $configured : self::DEFAULT_BASE_URL, '/');
+    }
+
+    /**
      * Check if the API is configured with an API key.
      *
      * @return bool True if the API key is set.
@@ -67,13 +85,13 @@ class api_client {
     /**
      * Make a POST request with a JSON body.
      *
-     * @param string $path API path (e.g. /lumination-ai/api/v1/features/courses).
+     * @param string $path API path starting with '/' (e.g. /course/guide).
      * @param array $data Request body data to be JSON-encoded.
      * @return array Decoded JSON response.
      * @throws \moodle_exception If the request fails or returns an error status.
      */
     public function post(string $path, array $data = []): array {
-        $url = self::BASE_URL . $path;
+        $url = $this->base_url() . $path;
         $curl = new \curl();
         $this->set_common_options($curl);
         $curl->setHeader('Content-Type: application/json');
@@ -83,15 +101,34 @@ class api_client {
     }
 
     /**
+     * Make a PUT request with a JSON body.
+     *
+     * @param string $path API path starting with '/' (e.g. /course/guide/{uuid}).
+     * @param array $data Request body data to be JSON-encoded.
+     * @return array Decoded JSON response.
+     * @throws \moodle_exception If the request fails or returns an error status.
+     */
+    public function put(string $path, array $data = []): array {
+        $url = $this->base_url() . $path;
+        $curl = new \curl();
+        $this->set_common_options($curl);
+        $curl->setHeader('Content-Type: application/json');
+        $curl->setopt(['CURLOPT_CUSTOMREQUEST' => 'PUT']);
+
+        $response = $curl->post($url, json_encode($data));
+        return $this->handle_response($curl, $response, $url);
+    }
+
+    /**
      * Make a GET request.
      *
-     * @param string $path API path (e.g. /lumination-ai/api/v1/features/courses).
+     * @param string $path API path starting with '/' (e.g. /requests/{id}).
      * @param array $params Query parameters to append to the URL.
      * @return array Decoded JSON response.
      * @throws \moodle_exception If the request fails or returns an error status.
      */
     public function get(string $path, array $params = []): array {
-        $url = self::BASE_URL . $path;
+        $url = $this->base_url() . $path;
         if (!empty($params)) {
             $url .= '?' . http_build_query($params);
         }
@@ -103,23 +140,55 @@ class api_client {
     }
 
     /**
-     * Make a multipart POST request for file uploads.
+     * Submit an asynchronous job and block until it completes.
      *
-     * @param string $path API path (e.g. /lumination-ai/api/v1/process-material).
-     * @param string $filepath Absolute path to the file on disk.
-     * @param array $fields Additional form fields to include in the request.
-     * @return array Decoded JSON response.
-     * @throws \moodle_exception If the request fails or returns an error status.
+     * The AI Tutor API is asynchronous: a POST to a tool endpoint returns a
+     * request_id, and the result is fetched by polling GET /requests/{id} until
+     * status is 'completed' or 'failed'. This returns the completed job envelope
+     * (with 'result', 'conversation_id', 'input_tokens', etc.).
+     *
+     * @param string $path Tool path (e.g. /tutor, /homework, /course).
+     * @param array $data Request body.
+     * @return array The completed job envelope.
+     * @throws \moodle_exception If submission fails, the job fails, or it times out.
      */
-    public function post_multipart(string $path, string $filepath, array $fields = []): array {
-        $url = self::BASE_URL . $path;
-        $curl = new \curl();
-        $this->set_common_options($curl);
-        // Don't set Content-Type -- curl sets multipart boundary automatically.
+    public function run(string $path, array $data = []): array {
+        $submit = $this->post($path, $data);
 
-        $fields['file'] = new \CURLFile($filepath);
-        $response = $curl->post($url, $fields);
-        return $this->handle_response($curl, $response, $url);
+        // Some responses may already be terminal.
+        $status = $submit['status'] ?? '';
+        if ($status === 'completed' || $status === 'failed') {
+            if ($status === 'failed') {
+                throw new \moodle_exception('errorapifailed', 'local_lumination', '', $submit['error'] ?? 'Job failed');
+            }
+            return $submit;
+        }
+
+        $requestid = $submit['request_id'] ?? '';
+        if (empty($requestid)) {
+            // No async id: return what we got.
+            return $submit;
+        }
+
+        $deadline = time() + self::POLL_MAX_WAIT;
+        while (time() < $deadline) {
+            sleep(self::POLL_INTERVAL);
+            $job = $this->get('/requests/' . rawurlencode($requestid));
+            $status = $job['status'] ?? '';
+            if ($status === 'completed') {
+                return $job;
+            }
+            if ($status === 'failed') {
+                throw new \moodle_exception(
+                    'errorapifailed',
+                    'local_lumination',
+                    '',
+                    $job['error'] ?? 'Job failed'
+                );
+            }
+        }
+
+        throw new \moodle_exception('errorapifailed', 'local_lumination', '', 'The request timed out.');
     }
 
     /**
@@ -129,7 +198,7 @@ class api_client {
      * @return void
      */
     private function set_common_options(\curl $curl): void {
-        $curl->setHeader('X-API-KEY: ' . $this->apikey);
+        $curl->setHeader('x-api-key: ' . $this->apikey);
         $curl->setHeader('X-REQUEST-ID: moodle-' . uniqid());
         $curl->setopt([
             'CURLOPT_TIMEOUT' => $this->timeout,

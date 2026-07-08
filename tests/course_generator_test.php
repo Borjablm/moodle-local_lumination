@@ -31,8 +31,8 @@ namespace local_lumination;
  * @covers \local_lumination\course_generator
  */
 final class course_generator_test extends \advanced_testcase {
-    /** @var \ReflectionMethod Cached reflection for parse_markdown_outline. */
-    private \ReflectionMethod $parsemethod;
+    /** @var \ReflectionMethod Cached reflection for guide_to_outline. */
+    private \ReflectionMethod $guidemethod;
 
     /** @var \ReflectionMethod Cached reflection for generate_unique_shortname. */
     private \ReflectionMethod $shortnamemethod;
@@ -42,105 +42,49 @@ final class course_generator_test extends \advanced_testcase {
         $this->resetAfterTest();
 
         // Make private methods accessible via reflection.
-        $this->parsemethod = new \ReflectionMethod(course_generator::class, 'parse_markdown_outline');
-        $this->parsemethod->setAccessible(true);
+        $this->guidemethod = new \ReflectionMethod(course_generator::class, 'guide_to_outline');
+        $this->guidemethod->setAccessible(true);
 
         $this->shortnamemethod = new \ReflectionMethod(course_generator::class, 'generate_unique_shortname');
         $this->shortnamemethod->setAccessible(true);
     }
 
     /**
-     * Test that a well-formed markdown outline is parsed into modules and lessons.
+     * Test that an AI Tutor guide is normalised into the plugin's outline shape.
      */
-    public function test_parse_markdown_outline_basic(): void {
-        $markdown = <<<'MD'
-## Module 1: Introduction to PHP
-A brief overview of the PHP language.
-1. History of PHP
-2. Installing PHP
-
-## Module 2: Variables and Types
-Learn about data types and variables.
-1. Scalar Types
-2. Arrays and Objects
-3. Type Juggling
-MD;
-
+    public function test_guide_to_outline_maps_structure(): void {
         $generator = new course_generator($this->create_mock_api());
-        $result = $this->parsemethod->invoke($generator, $markdown, 'My PHP Course');
 
-        $this->assertSame('My PHP Course', $result['title']);
-        $this->assertCount(2, $result['modules']);
+        $guide = [
+            'course_title' => 'Biology 101',
+            'course_structure' => [
+                ['module_name' => 'Cells', 'lesson_names' => ['Membranes', 'The Nucleus']],
+                ['module_name' => 'Energy', 'lesson_names' => ['ATP']],
+            ],
+        ];
 
-        // First module.
-        $mod1 = $result['modules'][0];
-        $this->assertSame('Introduction to PHP', $mod1['title']);
-        $this->assertStringContainsString('brief overview', $mod1['description']);
-        $this->assertCount(2, $mod1['lessons']);
-        $this->assertSame('History of PHP', $mod1['lessons'][0]['title']);
-        $this->assertSame('Installing PHP', $mod1['lessons'][1]['title']);
+        $outline = $this->guidemethod->invoke($generator, $guide, 'Fallback Title');
 
-        // Second module.
-        $mod2 = $result['modules'][1];
-        $this->assertSame('Variables and Types', $mod2['title']);
-        $this->assertCount(3, $mod2['lessons']);
-        $this->assertSame('Scalar Types', $mod2['lessons'][0]['title']);
-        $this->assertSame('Arrays and Objects', $mod2['lessons'][1]['title']);
-        $this->assertSame('Type Juggling', $mod2['lessons'][2]['title']);
+        $this->assertSame('Biology 101', $outline['title']);
+        $this->assertCount(2, $outline['modules']);
+        $this->assertSame('Cells', $outline['modules'][0]['title']);
+        $this->assertCount(2, $outline['modules'][0]['lessons']);
+        $this->assertSame('Membranes', $outline['modules'][0]['lessons'][0]['title']);
+        $this->assertSame('The Nucleus', $outline['modules'][0]['lessons'][1]['title']);
+        $this->assertSame('Energy', $outline['modules'][1]['title']);
+        $this->assertSame('ATP', $outline['modules'][1]['lessons'][0]['title']);
     }
 
     /**
-     * Test parsing with bullet-point lessons (- or *) instead of numbered lists.
+     * Test that the fallback title is used when the guide has no course_title.
      */
-    public function test_parse_markdown_outline_bullet_lessons(): void {
-        $markdown = <<<'MD'
-## Getting Started
-Overview of the topic.
-- Setting Up Your Environment
-- Your First Program
-
-## Advanced Topics
-Going deeper.
-* Concurrency
-* Error Handling
-MD;
-
-        $generator = new course_generator($this->create_mock_api());
-        $result = $this->parsemethod->invoke($generator, $markdown, 'Bullet Course');
-
-        $this->assertCount(2, $result['modules']);
-        $this->assertSame('Setting Up Your Environment', $result['modules'][0]['lessons'][0]['title']);
-        $this->assertSame('Your First Program', $result['modules'][0]['lessons'][1]['title']);
-        $this->assertSame('Concurrency', $result['modules'][1]['lessons'][0]['title']);
-        $this->assertSame('Error Handling', $result['modules'][1]['lessons'][1]['title']);
-    }
-
-    /**
-     * Test that a markdown outline with no module headers throws an exception.
-     */
-    public function test_parse_markdown_outline_empty_throws(): void {
+    public function test_guide_to_outline_uses_fallback_title(): void {
         $generator = new course_generator($this->create_mock_api());
 
-        $this->expectException(\moodle_exception::class);
-        $this->parsemethod->invoke($generator, 'No modules here, just plain text.', 'Empty');
-    }
+        $outline = $this->guidemethod->invoke($generator, ['course_structure' => []], 'My Fallback');
 
-    /**
-     * Test that lesson titles with trailing description text after " - " are cleaned.
-     */
-    public function test_parse_markdown_outline_strips_lesson_descriptions(): void {
-        $markdown = <<<'MD'
-## Module 1: Basics
-Intro.
-1. Variables - Learn about storing data
-2. Functions - Reusable code blocks
-MD;
-
-        $generator = new course_generator($this->create_mock_api());
-        $result = $this->parsemethod->invoke($generator, $markdown, 'Strip Test');
-
-        $this->assertSame('Variables', $result['modules'][0]['lessons'][0]['title']);
-        $this->assertSame('Functions', $result['modules'][0]['lessons'][1]['title']);
+        $this->assertSame('My Fallback', $outline['title']);
+        $this->assertSame([], $outline['modules']);
     }
 
     /**
@@ -202,19 +146,19 @@ MD;
     }
 
     /**
-     * Test that create_moodle_course_from_text creates a Moodle course with the
+     * Test that create_moodle_course_from_outline creates a Moodle course with the
      * correct structure: sections named after modules, page activities per lesson.
      */
-    public function test_create_moodle_course_from_text(): void {
+    public function test_create_moodle_course_from_outline(): void {
         global $DB;
 
         $this->setAdminUser();
 
-        // Build a mock api_client that returns fake lesson content.
+        // Build a mock api_client whose /tutor job returns fake lesson content.
         $mockapi = $this->createMock(api_client::class);
-        $mockapi->method('post')->willReturn([
-            'response' => [
-                'response' => '<p>This is AI-generated content.</p>',
+        $mockapi->method('run')->willReturn([
+            'result' => [
+                'reply' => '<p>This is AI-generated content.</p>',
             ],
         ]);
 
@@ -241,11 +185,11 @@ MD;
         ];
 
         $category = $this->getDataGenerator()->create_category();
-        $course = $generator->create_moodle_course_from_text(
+        $course = $generator->create_moodle_course_from_outline(
             $modules,
             'Test AI Course',
             $category->id,
-            'Some source document text for context.',
+            ['Understand the basics', 'Apply best practices'],
             'en'
         );
 
@@ -255,7 +199,6 @@ MD;
 
         // Verify section count: 2 modules means sections 1 and 2 (section 0 is General).
         $sections = $DB->get_records('course_sections', ['course' => $course->id], 'section ASC');
-        // Moodle creates section 0 plus our numsections.
         $this->assertGreaterThanOrEqual(3, count($sections));
 
         // Check section names.
@@ -286,17 +229,17 @@ MD;
     }
 
     /**
-     * Test that create_moodle_course_from_text falls back to placeholder content
-     * when the API call fails.
+     * Test that create_moodle_course_from_outline falls back to placeholder content
+     * when the lesson-content API call fails.
      */
-    public function test_create_moodle_course_from_text_api_failure_uses_placeholder(): void {
+    public function test_create_moodle_course_from_outline_api_failure_uses_placeholder(): void {
         global $DB;
 
         $this->setAdminUser();
 
-        // Mock that throws on every post() call.
+        // Mock whose /tutor job throws on every call.
         $mockapi = $this->createMock(api_client::class);
-        $mockapi->method('post')->willThrowException(
+        $mockapi->method('run')->willThrowException(
             new \moodle_exception('errorapifailed', 'local_lumination', '', 'Simulated failure')
         );
 
@@ -313,11 +256,11 @@ MD;
         ];
 
         $category = $this->getDataGenerator()->create_category();
-        $course = $generator->create_moodle_course_from_text(
+        $course = $generator->create_moodle_course_from_outline(
             $modules,
             'Fallback Course',
             $category->id,
-            'Source text.',
+            [],
             'en'
         );
 

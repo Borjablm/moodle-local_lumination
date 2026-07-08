@@ -49,6 +49,16 @@ if ($hassiteconfig) {
         )
     );
 
+    $settings->add(
+        new admin_setting_configtext(
+            'local_lumination/baseurl',
+            get_string('setting_baseurl', 'local_lumination'),
+            get_string('setting_baseurl_desc', 'local_lumination'),
+            'https://stage.ai-tutor.ai/api/v1',
+            PARAM_URL
+        )
+    );
+
     $ADMIN->add('local_lumination_cat', $settings);
 
     // Direct link to the Course Generator tool.
