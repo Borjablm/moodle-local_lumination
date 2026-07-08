@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.1 (2026-07-08)
+
+- Raise the PHP execution time limit during course creation (large courses generate many lessons and could otherwise time out).
+- Updated the API key setting help: register at ai-tutor.ai, create a key at the API dashboard (new accounts get $20 of free usage).
+
 ## v0.3.0 (2026-07-08)
 
 - Migrated to the AI Tutor API v1. The base URL is now a configurable admin setting, defaulting to the staging server (`https://stage.ai-tutor.ai/api/v1`).

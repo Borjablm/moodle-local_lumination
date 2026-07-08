@@ -76,7 +76,8 @@ $string['removemodule'] = 'Remove module';
 $string['setting_apibaseurl'] = 'API Base URL';
 $string['setting_apibaseurl_desc'] = 'The base URL of your Lumination API instance (e.g. https://api.lumination.ai).';
 $string['setting_apikey'] = 'API Key';
-$string['setting_apikey_desc'] = 'Your Lumination API key. Found in your Lumination dashboard.';
+$string['setting_apikey_desc'] = 'Your AI Tutor API key. Register at https://ai-tutor.ai, then open '
+    . 'https://stage.ai-tutor.ai/dashboard/api to create a key (new accounts get $20 of free usage).';
 $string['setting_baseurl'] = 'API base URL';
 $string['setting_baseurl_desc'] = 'The AI Tutor API base URL, including the /api/v1 prefix. Defaults to the staging server; change to the production URL once it is live.';
 $string['uploadfiles'] = 'Source document';

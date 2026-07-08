@@ -204,6 +204,10 @@ class course_generator {
     ): \stdClass {
         global $DB;
 
+        // Generating each lesson is a separate API round-trip, so a large course
+        // can take several minutes. Raise the execution time limit accordingly.
+        \core_php_time_limit::raise(600);
+
         // Ensure valid category -- fall back to first available.
         if (empty($categoryid) || !$DB->record_exists('course_categories', ['id' => $categoryid])) {
             $firstcat = $DB->get_record('course_categories', [], 'id', IGNORE_MULTIPLE);
