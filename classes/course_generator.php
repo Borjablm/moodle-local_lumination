@@ -325,9 +325,10 @@ class course_generator {
                 // Strip a leading markdown/HTML heading that duplicates the lesson title.
                 $content = preg_replace('/^\s*#{1,4}\s+.*?\n+/', '', $content, 1);
                 $content = preg_replace('/^\s*<h[1-4][^>]*>.*?<\/h[1-4]>\s*/i', '', $content, 1);
-                // Strip surrounding code fences if the model added them.
-                $content = preg_replace('/^\s*```(?:html)?\s*/i', '', $content);
-                $content = preg_replace('/\s*```\s*$/', '', $content);
+                // Strip surrounding triple-backtick code fences if the model added them.
+                $fence = str_repeat(chr(96), 3);
+                $content = preg_replace('/^\s*' . $fence . '(?:html)?\s*/i', '', $content);
+                $content = preg_replace('/\s*' . $fence . '\s*$/', '', $content);
                 return trim($content);
             }
         } catch (\Exception $e) {

@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.2 (2026-07-10)
+
+- Display name is now "Lumination AI Course Generator" (the component name `local_lumination` is unchanged).
+- Code style: build the code-fence regex without literal backticks, to satisfy the Moodle coding style checker.
+
 ## v0.3.1 (2026-07-08)
 
 - Default API base URL now points to production (`https://ai-tutor.ai/api/v1`). Override it per site via the API base URL setting.
