@@ -35,8 +35,8 @@ namespace local_lumination;
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class api_client {
-    /** @var string Default AI Tutor API base URL (staging). Includes the /api/v1 prefix. */
-    private const DEFAULT_BASE_URL = 'https://stage.ai-tutor.ai/api/v1';
+    /** @var string Default AI Tutor API base URL (production). Includes the /api/v1 prefix. */
+    private const DEFAULT_BASE_URL = 'https://ai-tutor.ai/api/v1';
 
     /** @var int Seconds between polls when waiting for an async job. */
     private const POLL_INTERVAL = 3;
@@ -113,9 +113,11 @@ class api_client {
         $curl = new \curl();
         $this->set_common_options($curl);
         $curl->setHeader('Content-Type: application/json');
-        $curl->setopt(['CURLOPT_CUSTOMREQUEST' => 'PUT']);
 
-        $response = $curl->post($url, json_encode($data));
+        // Send a real PUT with a JSON body. Passing CURLOPT_CUSTOMREQUEST in the
+        // per-request options ensures it is applied together with the request body
+        // (setting it separately gets overridden by CURLOPT_POST inside post()).
+        $response = $curl->post($url, json_encode($data), ['CURLOPT_CUSTOMREQUEST' => 'PUT']);
         return $this->handle_response($curl, $response, $url);
     }
 

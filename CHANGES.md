@@ -2,6 +2,7 @@
 
 ## v0.3.1 (2026-07-08)
 
+- Default API base URL now points to production (`https://ai-tutor.ai/api/v1`). Override it per site via the API base URL setting.
 - Raise the PHP execution time limit during course creation (large courses generate many lessons and could otherwise time out).
 - Updated the API key setting help: register at ai-tutor.ai, create a key at the API dashboard (new accounts get $20 of free usage).
 
