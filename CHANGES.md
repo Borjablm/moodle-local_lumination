@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.3 (2026-07-11)
+
+- Added pricing and free-credit info to the API key setting help: about $0.007 per lesson (~$0.20 per course), $20 of free credits for new accounts (around 100 courses), with self-service signup at ai-tutor.ai.
+
 ## v0.3.2 (2026-07-10)
 
 - Display name is now "Lumination AI Course Generator" (the component name `local_lumination` is unchanged).
