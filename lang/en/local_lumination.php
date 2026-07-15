@@ -43,8 +43,7 @@ $string['errornoapi'] = 'Lumination API is not configured. Please set the API Ba
 $string['errornocontent'] = 'No content was returned from the API.';
 $string['generateoutline'] = 'Generate outline';
 $string['generatingcourse'] = 'Generating your course...';
-$string['generatingcourse_desc'] = 'AI is writing content for each lesson. This may take a few minutes '
-    . '-- please do not close this page.';
+$string['generatingcourse_desc'] = 'AI is writing content for each lesson. This may take a few minutes -- please do not close this page.';
 $string['generatingoutline'] = 'Generating course outline from your documents...';
 $string['instructions'] = 'Instructions';
 $string['instructions_help'] = 'Optional guidance for course generation (e.g. audience level, tone, scope).';
@@ -73,12 +72,8 @@ $string['privacy:metadata:usage:tokens_out'] = 'The number of output tokens cons
 $string['privacy:metadata:usage:userid'] = 'The ID of the user who triggered the API call.';
 $string['removelesson'] = 'Remove lesson';
 $string['removemodule'] = 'Remove module';
-$string['setting_apibaseurl'] = 'API Base URL';
-$string['setting_apibaseurl_desc'] = 'The base URL of your Lumination API instance (e.g. https://api.lumination.ai).';
 $string['setting_apikey'] = 'API Key';
-$string['setting_apikey_desc'] = 'Requires a Lumination AI API key. Each generated lesson costs about $0.007 '
-    . '(roughly $0.20 per course), and new accounts get $20 of free credits (around 100 courses). '
-    . 'Register at https://ai-tutor.ai and create a key at https://ai-tutor.ai/dashboard/api.';
+$string['setting_apikey_desc'] = 'Requires a Lumination AI API key. Each generated lesson costs about $0.007 (roughly $0.20 per course), and new accounts get $20 of free credits (around 100 courses). Register at https://ai-tutor.ai and create a key at https://ai-tutor.ai/dashboard/api.';
 $string['setting_baseurl'] = 'API base URL';
 $string['setting_baseurl_desc'] = 'The AI Tutor API base URL (includes the /api/v1 prefix). Defaults to production; change only for a different environment.';
 $string['uploadfiles'] = 'Source document';

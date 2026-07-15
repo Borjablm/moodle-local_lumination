@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.4 (2026-07-11)
+
+- Language file cleanup for AMOS: removed PHP string concatenation so the English strings parse as a pure data file, and dropped two unused strings (`setting_apibaseurl`, `setting_apibaseurl_desc`). This lets translations be contributed at lang.moodle.org.
+
 ## v0.3.3 (2026-07-11)
 
 - Added pricing and free-credit info to the API key setting help: about $0.007 per lesson (~$0.20 per course), $20 of free credits for new accounts (around 100 courses), with self-service signup at ai-tutor.ai.
