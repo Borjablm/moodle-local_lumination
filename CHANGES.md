@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.5 (2026-07-15)
+
+- Bundled Spanish (es) translation (`lang/es/local_lumination.php`) so Spanish sites get a translated interface immediately. (Translations normally go through AMOS/lang.moodle.org, but the plugins directory to Marketplace migration has that import pipeline paused, so the translation is shipped in-plugin for now.)
+
 ## v0.3.4 (2026-07-11)
 
 - Language file cleanup for AMOS: removed PHP string concatenation so the English strings parse as a pure data file, and dropped two unused strings (`setting_apibaseurl`, `setting_apibaseurl_desc`). This lets translations be contributed at lang.moodle.org.
